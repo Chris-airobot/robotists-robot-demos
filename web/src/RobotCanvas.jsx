@@ -15,8 +15,10 @@ async function findRobotUrl() {
   // The optimized robot is generated locally by tools/optimize_magicdog.py.
   // First-run installations can still use the original OBJ model.
   try {
-    const response = await fetch(OPTIMIZED_URL, { method: 'HEAD', cache: 'no-store' });
-    if (response.ok) return OPTIMIZED_URL;
+    const response = await fetch(OPTIMIZED_URL, { cache: 'no-store' });
+    // Vite may serve index.html (HTTP 200) for a missing asset.
+    // Inspect the actual content before switching away from original OBJ.
+    if (response.ok && (await response.text()).includes('<robot')) return OPTIMIZED_URL;
   } catch (error) {
     console.debug('Optimized model not present yet', error);
   }
