@@ -9,19 +9,26 @@ import { MOTION_BY_ID, applyMotion } from './motions.js';
 
 const MODEL_ROOT = import.meta.env.BASE_URL + 'magicdog/urdf/';
 const ORIGINAL_URL = MODEL_ROOT + 'magicdog_repaint.urdf';
-const OPTIMIZED_URL = MODEL_ROOT + 'magicdog_web.urdf';
+const FAST_OBJ_URL = MODEL_ROOT + 'magicdog_fast.urdf';
+const EXPERIMENTAL_GLB_URL = MODEL_ROOT + 'magicdog_web.urdf';
 
 async function findRobotUrl() {
-  // The optimized robot is generated locally by tools/optimize_magicdog.py.
-  // First-run installations can still use the original OBJ model.
+  // The original OBJ+MTL is the verified reference for color and assembly.
+  // Never auto-select the experimental GLB (its appearance is not correct yet).
+  // ?model=fast opts into the material-preserving reduced OBJ export.
+  // ?model=glb is a diagnostic experiment ONLY.
+  const requested = new URLSearchParams(window.location.search).get('model');
+  const candidate = requested === 'fast' ? FAST_OBJ_URL :
+    requested === 'glb' ? EXPERIMENTAL_GLB_URL : ORIGINAL_URL;
+  if (candidate === ORIGINAL_URL) return ORIGINAL_URL;
   try {
-    const response = await fetch(OPTIMIZED_URL, { cache: 'no-store' });
-    // Vite may serve index.html (HTTP 200) for a missing asset.
-    // Inspect the actual content before switching away from original OBJ.
-    if (response.ok && (await response.text()).includes('<robot')) return OPTIMIZED_URL;
+    const response = await fetch(candidate, { cache: 'no-store' });
+    // Vite's HTML fallback may return HTTP 200 for a missing URDF.
+    if (response.ok && (await response.text()).includes('<robot')) return candidate;
   } catch (error) {
-    console.debug('Optimized model not present yet', error);
+    console.warn('Could not load optional model version', error);
   }
+  console.warn('Optional model unavailable; falling back to reference OBJ+MTL');
   return ORIGINAL_URL;
 }
 
@@ -143,6 +150,13 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     el.appendChild(renderer.domElement);
+    const gl = renderer.getContext();
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      console.info('Robotists 3D GPU:', gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
+    } else {
+      console.info('Robotists: WebGL GPU renderer information unavailable in this browser');
+    }
 
     scene.add(new THREE.HemisphereLight('#ffffff', '#c4cfd8', 2.4));
     const sun = new THREE.DirectionalLight('#ffffff', 3.2);
@@ -251,7 +265,8 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       if (now - lastFpsTick >= 1000) {
         const fps = Math.round(frameCount * 1000 / (now - lastFpsTick));
         const triangles = renderer.info.render.triangles;
-        fpsOverlay.textContent = fps + ' FPS · ' + (triangles / 1000).toFixed(0) + 'k tris';
+        const drawCalls = renderer.info.render.calls;
+        fpsOverlay.textContent = fps + ' FPS · ' + (triangles / 1000).toFixed(0) + 'k tris · ' + drawCalls + ' draws';
         fpsOverlay.classList.toggle('fps-low', fps < 40);
         lastFpsTick = now;
         frameCount = 0;
