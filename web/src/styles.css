@@ -184,3 +184,25 @@ hr { border: 0; height: 1px; background: #eff1f4; width: 100%; margin: 19px 0 23
   .motion-group { width: 100%; }
   .footer { flex-direction: column; gap: 12px; }
 }
+
+/* Local-only diagnostics: FPS + rendered triangle count. */
+.fps-meter {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  pointer-events: none;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #e6eaef;
+  color: #658676;
+  background: rgba(255,255,255,.88);
+  font: 800 10px 'Manrope', sans-serif;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.fps-meter.fps-low { color: #c16f54; }
+@media (max-width: 540px) {
+  .fps-meter { top: 61px; padding: 6px 8px; font-size: 9px; }
+}
