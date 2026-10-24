@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   Activity, ArrowUpRight, Box, Check, ChevronRight, CircleHelp, Compass,
-  Footprints, Github, Hand, Layers3, Maximize2, Move3D, Pause, Play,
+  Footprints, Github, Hand, Layers3, Maximize2, Move3d, Pause, Play,
   RotateCcw, ScanEye, Sparkles,
 } from 'lucide-react';
 import RobotCanvas from './RobotCanvas.jsx';
@@ -142,7 +142,7 @@ export default function App() {
                 <strong>MagicDog<small>_01</small></strong>
               </div>
               <div className="stage-footer">
-                <span className="stage-hint"><Move3D size={16}/> Drag to rotate <b>·</b> Scroll to zoom</span>
+                <span className="stage-hint"><Move3d size={16}/> Drag to rotate <b>·</b> Scroll to zoom</span>
                 <div className="stage-actions">
                   <button type="button" title="Toggle wireframe" className={wireframe ? 'selected-tool' : ''} onClick={() => setWireframe(v => !v)}><Layers3 size={18}/></button>
                   <button type="button" title="Reset camera" onClick={() => setCameraReset(v => v + 1)}><RotateCcw size={18}/></button>
