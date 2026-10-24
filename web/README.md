@@ -49,8 +49,30 @@ Run from the repository root:
     .venv-mesh/bin/python -m pip install trimesh fast-simplification numpy
     .venv-mesh/bin/python tools/optimize_magicdog.py --keep-ratio 0.10
 
-Refresh or restart the Vite server. It automatically prefers `models/magicdog/urdf/magicdog_web.urdf`
-when available. The original URDF, meshes and simulation code remain unchanged.
+The GLB route is **experimental**: it did not preserve the original model appearance. The webpage **now defaults to the original OBJ + MTL**. It never auto-selects GLB. The original URDF, meshes and simulation code remain unchanged.
 
 Inspect the FPS number above the viewer. For low FPS even after optimization,
 check the browser's GPU/WebGL hardware acceleration in its diagnostics.
+
+## Material-faithful performance comparison
+
+The **reference model** is always loaded by the plain homepage URL and preserves
+its original colors. To create an alternative lower-polygon **OBJ with the same
+MTL material names and coordinate conventions**, run from the repo root:
+
+    .venv-mesh/bin/python tools/optimize_magicdog_obj.py --keep-ratio 0.35
+
+Compare:
+
+- Reference: http://localhost:5173/
+- Reduced-geometry model: http://localhost:5173/?model=fast
+- Experimental GLB (not recommended): http://localhost:5173/?model=glb
+
+Both normal and fast variants keep the same robot joint structure. These new
+OBJ files are not applied to the physics simulator. Compare appearance **before**
+committing any exported meshes.
+
+The FPS overlay reports FPS, submitted triangles, and draw calls. If even the
+low-face-count geometry is slow, check `about:support` (Firefox) for WebGL GPU
+hardware acceleration, and test in a standalone browser rather than VS Code's
+embedded webview.
