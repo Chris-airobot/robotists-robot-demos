@@ -4,12 +4,29 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import URDFLoader from 'urdf-loader';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MOTION_BY_ID, applyMotion } from './motions.js';
 
-const ROBOT_URL = import.meta.env.BASE_URL + 'magicdog/urdf/magicdog_repaint.urdf';
+const MODEL_ROOT = import.meta.env.BASE_URL + 'magicdog/urdf/';
+const ORIGINAL_URL = MODEL_ROOT + 'magicdog_repaint.urdf';
+const OPTIMIZED_URL = MODEL_ROOT + 'magicdog_web.urdf';
+
+async function findRobotUrl() {
+  // The optimized robot is generated locally by tools/optimize_magicdog.py.
+  // First-run installations can still use the original OBJ model.
+  try {
+    const response = await fetch(OPTIMIZED_URL, { method: 'HEAD', cache: 'no-store' });
+    if (response.ok) return OPTIMIZED_URL;
+  } catch (error) {
+    console.debug('Optimized model not present yet', error);
+  }
+  return ORIGINAL_URL;
+}
+
 
 function createRobotLoader(manager) {
   const loader = new URDFLoader(manager);
+  const gltfLoader = new GLTFLoader(manager);
   loader.parseVisual = true;
   loader.parseCollision = false;
   const meshCache = new Map();
@@ -17,6 +34,13 @@ function createRobotLoader(manager) {
   // Version 0.13.x callback: (path, manager, material, onComplete).
   // Load the MTL repaint colors and parse each OBJ only once.
   loader.loadMeshCb = (url, assetManager, material, onComplete) => {
+    if (/\.glb(?:\?.*)?$/i.test(url)) {
+      if (!meshCache.has(url)) {
+        meshCache.set(url, gltfLoader.loadAsync(url).then(gltf => gltf.scene));
+      }
+      meshCache.get(url).then(scene => onComplete(scene.clone(true))).catch(error => onComplete(null, error));
+      return;
+    }
     if (!/\.obj(?:\?.*)?$/i.test(url)) {
       onComplete(null, new Error('Unsupported model format: ' + url));
       return;
@@ -97,17 +121,22 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     let animationFrame = 0;
     let lastTime = performance.now();
     let lastReport = 0;
+    let lastFpsTick = lastTime;
+    let frameCount = 0;
+    const fpsOverlay = document.createElement('div');
+    fpsOverlay.className = 'fps-meter';
+    fpsOverlay.textContent = 'Measuring FPS…';
+    el.appendChild(fpsOverlay);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#f6f8fa');
     const camera = new THREE.PerspectiveCamera(35, 1, .01, 50);
     camera.position.set(1.65, 1.15, 1.75);
     const renderer = new THREE.WebGLRenderer({
-      antialias: true, alpha: false, powerPreference: 'high-performance',
+      antialias: false, alpha: false, powerPreference: 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(1); // 1x pixels instead of 2x (up to 75% fewer fragments)
+    renderer.shadowMap.enabled = false; // high-polygon geometry + dynamic shadows is too costly
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
@@ -116,7 +145,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     scene.add(new THREE.HemisphereLight('#ffffff', '#c4cfd8', 2.4));
     const sun = new THREE.DirectionalLight('#ffffff', 3.2);
     sun.position.set(2.5, 5, 3);
-    sun.castShadow = true;
+    sun.castShadow = false;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -2;
     sun.shadow.camera.right = 2;
@@ -125,14 +154,25 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     sun.shadow.bias = -.0002;
     scene.add(sun);
 
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(200, 200),
-      new THREE.ShadowMaterial({ color: '#6e7b8b', opacity: .19 })
+    // A soft contact shadow needs no additional shadow-map render pass.
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width = shadowCanvas.height = 128;
+    const ctx = shadowCanvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(64, 64, 5, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(44, 58, 72, 0.20)');
+    gradient.addColorStop(1, 'rgba(44, 58, 72, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(.95, .72),
+      new THREE.MeshBasicMaterial({
+        map: new THREE.CanvasTexture(shadowCanvas),
+        transparent: true, depthWrite: false,
+      })
     );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -.012;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = .001;
+    scene.add(shadow);
 
     const grid = new THREE.GridHelper(8, 40, '#d8dfe7', '#e7ebf0');
     grid.position.y = -.009;
@@ -178,7 +218,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
 
     const loader = createRobotLoader(manager);
     valuesRef.current.onLoadState({ phase: 'loading', percent: 0 });
-    loader.load(ROBOT_URL, robot => {
+    findRobotUrl().then(url => loader.load(url, robot => {
       if (stopped) return;
       robot.rotation.x = -Math.PI / 2; // URDF Z-up => Three.js Y-up
       stage.add(robot);
@@ -186,6 +226,8 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current);
     }, undefined, err => {
       if (!stopped) valuesRef.current.onLoadState({ phase: 'error', percent: 0, message: String(err?.message || err) });
+    })).catch(err => {
+      if (!stopped) valuesRef.current.onLoadState({ phase: 'error', percent: 0, message: String(err) });
     });
 
     const draw = now => {
@@ -203,6 +245,15 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       }
       controls.update();
       renderer.render(scene, camera);
+      frameCount += 1;
+      if (now - lastFpsTick >= 1000) {
+        const fps = Math.round(frameCount * 1000 / (now - lastFpsTick));
+        const triangles = renderer.info.render.triangles;
+        fpsOverlay.textContent = fps + ' FPS · ' + (triangles / 1000).toFixed(0) + 'k tris';
+        fpsOverlay.classList.toggle('fps-low', fps < 40);
+        lastFpsTick = now;
+        frameCount = 0;
+      }
     };
     animationFrame = requestAnimationFrame(draw);
 
@@ -213,6 +264,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       controls.dispose();
       renderer.dispose();
       if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
+      if (fpsOverlay.parentElement === el) el.removeChild(fpsOverlay);
       robotRef.current = null;
       stageRef.current = null;
       controlsRef.current = null;
