@@ -32,3 +32,25 @@ These motions are **illustrative kinematic previews**, inspired by our Isaac Lab
 - Optimize the robot's OBJ meshes into compressed glTF/GLB.
 - Export joint trajectories from Isaac Lab, and replace hand-authored motion formulas.
 - Add new robots via model/animation manifests and reusable viewer controls.
+
+## Performance
+
+The first prototype displayed full-resolution OBJ meshes with real-time shadows and
+up to 2x device-pixel-ratio rendering. V1 performance improvements:
+
+- WebGL renderer uses 1x pixel ratio and no dynamic shadow pass.
+- Lightweight simulated contact shadow.
+- FPS and rendered triangle-count indicator over the 3D viewport.
+- An offline mesh optimizer generates simplified GLB files for each unique OBJ mesh.
+
+Run from the repository root:
+
+    python3 -m venv .venv-mesh
+    .venv-mesh/bin/python -m pip install trimesh fast-simplification numpy
+    .venv-mesh/bin/python tools/optimize_magicdog.py --keep-ratio 0.10
+
+Refresh or restart the Vite server. It automatically prefers `models/magicdog/urdf/magicdog_web.urdf`
+when available. The original URDF, meshes and simulation code remain unchanged.
+
+Inspect the FPS number above the viewer. For low FPS even after optimization,
+check the browser's GPU/WebGL hardware acceleration in its diagnostics.
