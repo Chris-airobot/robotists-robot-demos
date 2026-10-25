@@ -76,3 +76,37 @@ The FPS overlay reports FPS, submitted triangles, and draw calls. If even the
 low-face-count geometry is slow, check `about:support` (Firefox) for WebGL GPU
 hardware acceleration, and test in a standalone browser rather than VS Code's
 embedded webview.
+
+## Automated in-browser performance benchmark
+
+This is an opt-in development test. It runs **inside the desktop browser using
+its real GPU/WebGL configuration**, not in a simulated/headless CI environment.
+
+From the `web` directory:
+
+    npm run benchmark
+
+Vite opens `/?benchmark=1`. Keep that browser tab in the foreground and do
+not resize or interact with it while testing.
+
+When assets are ready, the page runs three phases automatically:
+1. Idle with a stationary camera.
+2. Walking animation with a stationary camera.
+3. Walking animation plus an automated camera orbit.
+
+Each lasts 4.5 seconds (first 0.75 seconds excluded as warmup). When complete,
+the Vite terminal prints a concise FPS/p95 summary and the current WebGL GPU.
+The complete JSON is saved locally to:
+
+    web/benchmark-results/latest.json
+
+The JSON includes mean rAF FPS, p50/p95/p99 frame intervals, proportion of frames
+over 33.3 ms, GPU renderer name (if browser exposes it), total triangles and draw
+calls. A report is **never uploaded automatically** and the folder is gitignored.
+
+Interpretation:
+- A 60 Hz display normally caps requestAnimationFrame FPS at ~60.
+- Large p95/p99 frame times or many >33.3 ms frames imply visible stuttering.
+- Firefox can hide GPU details for privacy; run `about:support` if needed.
+- Headless automated browsers may select software rendering; this test uses your
+  actual browser and avoids that source of misleading results.
