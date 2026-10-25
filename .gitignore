@@ -12,3 +12,6 @@ dist/
 /models/magicdog/web_meshes/
 /models/magicdog/urdf/magicdog_fast.urdf
 /models/magicdog/urdf/magicdog_web.urdf
+
+# Local browser performance reports (not uploaded automatically)
+/web/benchmark-results/
