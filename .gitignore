@@ -6,3 +6,9 @@ node_modules/
 dist/
 *.mp4
 .venv*/
+
+# Generated model experiments: do not accidentally commit 100+ MB exports
+/models/magicdog/web_obj/
+/models/magicdog/web_meshes/
+/models/magicdog/urdf/magicdog_fast.urdf
+/models/magicdog/urdf/magicdog_web.urdf
