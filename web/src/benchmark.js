@@ -48,7 +48,7 @@ export function getWebGLContextInfo(renderer) {
     renderer: ext ? safeGet(ext.UNMASKED_RENDERER_WEBGL) : safeGet(gl.RENDERER),
     vendor: ext ? safeGet(ext.UNMASKED_VENDOR_WEBGL) : safeGet(gl.VENDOR),
     version: safeGet(gl.VERSION),
-    webgl2: gl instanceof WebGL2RenderingContext,
+    webgl2: typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext,
   };
 }
 
