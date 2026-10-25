@@ -6,6 +6,7 @@ import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import URDFLoader from 'urdf-loader';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MOTION_BY_ID, applyMotion } from './motions.js';
+import { makeBenchmark, saveBenchmark } from './benchmark.js';
 
 const MODEL_ROOT = import.meta.env.BASE_URL + 'magicdog/urdf/';
 const ORIGINAL_URL = MODEL_ROOT + 'magicdog_repaint.urdf';
@@ -132,6 +133,10 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     let lastReport = 0;
     let lastFpsTick = lastTime;
     let frameCount = 0;
+    const benchmarkMode = new URLSearchParams(window.location.search).get('benchmark') === '1';
+    let assetsReady = false;
+    let loadedModel = 'unknown';
+    let benchmarkStatus = '';
     const fpsOverlay = document.createElement('div');
     fpsOverlay.className = 'fps-meter';
     fpsOverlay.textContent = 'Measuring FPS…';
@@ -150,6 +155,11 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     el.appendChild(renderer.domElement);
+    const benchmark = benchmarkMode ? makeBenchmark({
+      renderer,
+      onStatus: status => { benchmarkStatus = status; },
+      onFinished: report => { void saveBenchmark(report); },
+    }) : null;
     const gl = renderer.getContext();
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
     if (debugInfo) {
@@ -228,13 +238,16 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       if (!stopped) valuesRef.current.onLoadState({ phase: 'loading', percent: Math.min(95, Math.round(92 * count / total)) });
     };
     manager.onLoad = () => {
+      assetsReady = true;
       if (!stopped) valuesRef.current.onLoadState({ phase: 'ready', percent: 100 });
     };
     manager.onError = url => console.error('Asset error:', url);
 
     const loader = createRobotLoader(manager);
     valuesRef.current.onLoadState({ phase: 'loading', percent: 0 });
-    findRobotUrl().then(url => loader.load(url, robot => {
+    findRobotUrl().then(url => {
+      loadedModel = url;
+      loader.load(url, robot => {
       if (stopped) return;
       robot.rotation.x = -Math.PI / 2; // URDF Z-up => Three.js Y-up
       stage.add(robot);
@@ -242,7 +255,8 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current);
     }, undefined, err => {
       if (!stopped) valuesRef.current.onLoadState({ phase: 'error', percent: 0, message: String(err?.message || err) });
-    })).catch(err => {
+      });
+    }).catch(err => {
       if (!stopped) valuesRef.current.onLoadState({ phase: 'error', percent: 0, message: String(err) });
     });
 
@@ -252,21 +266,42 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       const dt = Math.min((now - lastTime) / 1000, .05);
       lastTime = now;
       const settings = valuesRef.current;
-      const duration = (MOTION_BY_ID[settings.motionId] || MOTION_BY_ID.idle).duration;
-      if (settings.playing) timeRef.current = (timeRef.current + dt * settings.speed) % duration;
-      applyMotion(robotRef.current, stage, settings.motionId, timeRef.current);
+      if (benchmark && !benchmark.active && !benchmark.finished && assetsReady && robotRef.current) {
+        let meshCount = 0;
+        robotRef.current.traverse(node => { if (node.isMesh) meshCount += 1; });
+        // Wait for the model to actually be present, not just the URDF XML.
+        if (meshCount > 0) benchmark.begin(now, loadedModel);
+      }
+      const phase = benchmark?.active ? benchmark.phase : null;
+      if (phase) {
+        timeRef.current += dt;
+        applyMotion(robotRef.current, stage, phase.motion, timeRef.current);
+        if (phase.orbit) {
+          // Synthetic camera orbit approximates sustained mouse dragging.
+          const offset = camera.position.clone().sub(controls.target);
+          const radius = Math.hypot(offset.x, offset.z);
+          const a = Math.atan2(offset.z, offset.x) + dt * .85;
+          camera.position.set(controls.target.x + radius * Math.cos(a), controls.target.y + offset.y, controls.target.z + radius * Math.sin(a));
+        }
+      } else if (!benchmark?.finished) {
+        const duration = (MOTION_BY_ID[settings.motionId] || MOTION_BY_ID.idle).duration;
+        if (settings.playing) timeRef.current = (timeRef.current + dt * settings.speed) % duration;
+        applyMotion(robotRef.current, stage, settings.motionId, timeRef.current);
+      }
       if (now - lastReport > 90) {
         settings.onProgress(timeRef.current);
         lastReport = now;
       }
       controls.update();
       renderer.render(scene, camera);
+      benchmark?.sample(now, renderer.info.render);
       frameCount += 1;
       if (now - lastFpsTick >= 1000) {
         const fps = Math.round(frameCount * 1000 / (now - lastFpsTick));
         const triangles = renderer.info.render.triangles;
         const drawCalls = renderer.info.render.calls;
-        fpsOverlay.textContent = fps + ' FPS · ' + (triangles / 1000).toFixed(0) + 'k tris · ' + drawCalls + ' draws';
+        fpsOverlay.textContent = (benchmarkMode ? benchmarkStatus + ' | ' : '') +
+          fps + ' FPS · ' + (triangles / 1000).toFixed(0) + 'k tris · ' + drawCalls + ' draws';
         fpsOverlay.classList.toggle('fps-low', fps < 40);
         lastFpsTick = now;
         frameCount = 0;
@@ -278,6 +313,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       stopped = true;
       cancelAnimationFrame(animationFrame);
       observer.disconnect();
+      benchmark?.dispose();
       controls.dispose();
       renderer.dispose();
       if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
