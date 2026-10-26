@@ -140,6 +140,49 @@ function createRobotLoader(manager) {
   return loader;
 }
 
+/**
+ * Unitree A1's public ROS DAE geometry is an untextured simulation asset.
+ * Its exported diffuse materials render as a near-black trunk with pale calf
+ * rods, while the physical A1 uses charcoal body and dark legs. Keep the
+ * original geometry and URDF transforms; tune *A1-only* preview materials.
+ * Never recolor MagicDog or Go2.
+ */
+function styleA1Preview(robot) {
+  if (!robot?.links) return;
+  const colors = {
+    trunk: '#394047',
+    hip: '#444b53',
+    thigh: '#363d45',
+    calf: '#30363e',
+    foot: '#292e34',
+  };
+  for (const [name, link] of Object.entries(robot.links)) {
+    if (!link) continue;
+    let part = null;
+    if (name === 'trunk') part = 'trunk';
+    else if (/_hip$/.test(name)) part = 'hip';
+    else if (/_thigh$/.test(name)) part = 'thigh';
+    else if (/_calf$/.test(name)) part = 'calf';
+    else if (/_foot$/.test(name)) part = 'foot';
+    if (!part) continue;
+    link.traverse(node => {
+      if (!node.isMesh) return;
+      const originalMaterials = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of originalMaterials) {
+        if (!material?.color) continue;
+        material.color.set(colors[part]);
+        // ColladaLoader can produce MeshPhongMaterial; keep a visible
+        // satin highlight without changing light intensity elsewhere.
+        if (material.specular) material.specular.set('#262c33');
+        if ('shininess' in material) material.shininess = 35;
+        if ('roughness' in material) material.roughness = 0.68;
+        if ('metalness' in material) material.metalness = 0.12;
+        if (material.emissive) material.emissive.set('#000000');
+      }
+    });
+  }
+}
+
 export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, speed, seek, resetCamera, wireframe, onProgress, onLoadState }) {
   const containerRef = useRef(null);
   const robotRef = useRef(null);
@@ -337,6 +380,7 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
       if (stopped) return;
       robot.rotation.x = -Math.PI / 2; // URDF Z-up => Three.js Y-up
       stage.add(robot);
+      if (robotId === 'a1') styleA1Preview(robot);
       robotRef.current = robot;
       if (robotId === 'magicdog') {
         applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current, { instant: true });
