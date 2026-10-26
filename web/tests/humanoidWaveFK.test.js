@@ -134,3 +134,34 @@ test('OLI and LUNA greeting travels SIDE TO SIDE, not forward and backward', () 
     assert.ok(delta[1] > delta[0] * 3.0, id + ': fore-aft wag dominates lateral movement');
   }
 });
+
+test('walking sway keeps stance-foot lateral and vertical drift small in actual LimX URDF FK', () => {
+  for (const id of ['oli','luna']) {
+    const xml = readFileSync(new URL(id + '/urdf/' + id + '.urdf', root), 'utf8');
+    const fk = modelFK(xml);
+    const samples = { left: [], right: [] };
+    for (let frame = 0; frame < 6 * 60; frame++) {
+      const time = frame / 60;
+      const p = sampleHumanoidMotion(id, 'walk', time);
+      for (const [side, phaseOffset] of [['left', 0], ['right', .5]]) {
+        const phase = (time * 3 / 6 + phaseOffset) % 1;
+        if (phase >= .62) continue; // only during approximate stance
+        const foot = fk(side + '_ankle_roll_link', p.joints);
+        samples[side].push({
+          lateral: foot[1] + p.body.lateral,
+          height: foot[2] + p.body.height,
+        });
+      }
+    }
+    for (const side of ['left','right']) {
+      const lateral = samples[side].map(s => s.lateral);
+      const height = samples[side].map(s => s.height);
+      const lateralRange = Math.max(...lateral) - Math.min(...lateral);
+      const heightRange = Math.max(...height) - Math.min(...height);
+      // A few millimeters of motion remain due to oblique manufacturer
+      // hip-pitch axes, but the root sway must not drag stance feet 17 mm.
+      assert.ok(lateralRange < .009, id + '/' + side + ': stance foot skated sideways ' + lateralRange);
+      assert.ok(heightRange < .006, id + '/' + side + ': stance foot bobbed vertically ' + heightRange);
+    }
+  }
+});
