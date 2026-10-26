@@ -61,6 +61,12 @@ function createRobotLoader(manager) {
   loader.parseVisual = true;
   loader.parseCollision = false;
   const meshCache = new Map();
+  const humanoidStlUrls = new Set();
+  const styledHumanoidStlUrls = new Set();
+  loader.getHumanoidMaterialAudit = () => ({
+    expectedMeshes: humanoidStlUrls.size,
+    coloredMeshes: styledHumanoidStlUrls.size,
+  });
 
   // Version 0.13.x callback: (path, manager, material, onComplete).
   // Load the MTL repaint colors and parse each OBJ only once.
@@ -73,6 +79,11 @@ function createRobotLoader(manager) {
         // monochrome ROS diffuse materials with per-part presentation colors.
         // All other robots keep their own materials, unchanged.
         const visualStyle = getHumanoidStlStyle(url);
+        if (/\/(?:oli|luna)\//i.test(url)) {
+          humanoidStlUrls.add(url);
+          if (visualStyle) styledHumanoidStlUrls.add(url);
+          else console.warn('[Robotists] No humanoid material matched STL path:', url);
+        }
         const mat = visualStyle
           ? new THREE.MeshStandardMaterial({ ...visualStyle })
           : material?.isMaterial ? material.clone() : new THREE.MeshStandardMaterial({
@@ -400,6 +411,18 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
     };
     manager.onLoad = () => {
       assetsReady = true;
+      if (humanoid) {
+        // Wait for STLLoader.loadAsync promise handlers to finish adding meshes
+        // after LoadingManager's final network request completes.
+        window.setTimeout(() => {
+          if (stopped) return;
+          const audit = loader.getHumanoidMaterialAudit();
+          console.info('[Robotists] ' + robotId.toUpperCase() + ' STL colors:', audit);
+          if (audit.coloredMeshes === 0 || audit.coloredMeshes !== audit.expectedMeshes) {
+            console.error('[Robotists] Humanoid preview materials did not match every STL URL', audit);
+          }
+        }, 150);
+      }
       if (!stopped) valuesRef.current.onLoadState({ phase: 'ready', percent: 100 });
     };
     manager.onError = url => console.error('Asset error:', url);
