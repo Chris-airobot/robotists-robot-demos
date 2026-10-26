@@ -57,7 +57,7 @@ be verified interactively before publication. Original MagicDog and Go2
 visualization data remain unchanged.
 
 
-### Humanoid motion polish (v0.3.3)
+### Humanoid motion polish (v0.3.4)
 
 The first-generation humanoid motions were joint-angle sine waves. They made
 the robots move, but moving the whole root while the feet remained attached
@@ -66,13 +66,18 @@ to the pelvis caused obvious skating and implausible transitions.
 Current OLI/LUNA previews use conservative, model-specific poses:
 
 - **Ready Stance:** fixed pelvis, subtle waist/head breathing.
-- **Walking Preview:** slower (3 vs 5 cycles per 6 seconds),
+- **Walking Preview:** slower (3 cycles per 6 seconds),
   alternating in-place steps generated from sagittal foot-space trajectories
   with 62% nominal stance and elevated swing phases. More flexed knees
-  reduce near-singular IK joint swings; a matching pelvis-height offset
-  keeps the sagittal stance-foot floor level and the ankle compensates
-  foot pitch. This does **not** model real whole-body balance, physical
-  contact forces or full 3D foot-contact constraints.
+  reduce near-singular IK joint swings; ankles compensate foot pitch.
+  **Pelvis + torso now move:** +/-17 mm alternating COM-side shift,
+  about 4 mm vertical bob, coordinated hip/ankle roll compensation,
+  upper-body forward lean/roll/yaw, head counter-yaw and stronger
+  contralateral arm swing. Both official URDFs are checked for limited
+  lateral (<9 mm) and vertical (<6 mm) stance-foot drift at 60 Hz.
+  This is still an in-place kinematic animation: it does **not** provide
+  genuine forward locomotion, foot-contact forces or dynamically stable
+  whole-body control.
 - **Controlled Squat:** approximate matched hip/knee/ankle coordination and
   pelvis lowering from a two-link sagittal reach model.
 - **Torso Turn:** head + waist move while the pelvis/legs stay stationary.
