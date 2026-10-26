@@ -74,9 +74,12 @@ Current OLI/LUNA previews use conservative, model-specific poses:
 - **Controlled Squat:** approximate matched hip/knee/ankle coordination and
   pelvis lowering from a two-link sagittal reach model.
 - **Torso Turn:** head + waist move while the pelvis/legs stay stationary.
-- **Wave Hello:** robot-specific right shoulder-roll angles to bring the
-  hand above the shoulder, plus small elbow/wrist movements and return.
-  The official LUNA wrist has only yaw, whereas OLI supports wrist pitch.
+- **Wave Hello:** robot-specific right shoulder pitch/roll/yaw and a
+  clearly flexed elbow bring the hand near the right side of the head;
+  the forearm then points upwards instead of sticking out sideways.
+  LUNA has wrist yaw only, whereas OLI also has wrist pitch/roll.
+  The 3D hand/elbow/head placement is checked using each model's official
+  URDF forward kinematics in `tests/humanoidWaveFK.test.js`.
 - **Look Around:** look/hold/look/hold timing rather than rapid sine bobbing.
 - **Reach Forward:** forward reach and hold with a stationary lower body.
 
