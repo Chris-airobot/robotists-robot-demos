@@ -1,0 +1,19 @@
+# Robotists Motion Library: Netlify continuous deployment.
+# GitHub repository stays private; only Vite's static build output is public.
+# Connect the "master" branch of Chris-airobot/robotists-robot-demos
+# in the Netlify UI once. Every subsequent push redeploys automatically.
+
+[build]
+  command = "bash tools/build_static_site.sh"
+  publish = "web/dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+  PYTHONUNBUFFERED = "1"
+
+# Let React handle client-side routes. Missing files with extensions are
+# served as 404 by Netlify before the fallback in most normal asset cases.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
