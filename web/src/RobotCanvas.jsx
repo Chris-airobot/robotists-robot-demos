@@ -110,7 +110,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
   useEffect(() => {
     if (seek && Number.isFinite(seek.value)) {
       timeRef.current = seek.value;
-      applyMotion(robotRef.current, stageRef.current, valuesRef.current.motionId, timeRef.current);
+      applyMotion(robotRef.current, stageRef.current, valuesRef.current.motionId, timeRef.current, { instant: true });
     }
   }, [seek]);
 
@@ -252,7 +252,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       robot.rotation.x = -Math.PI / 2; // URDF Z-up => Three.js Y-up
       stage.add(robot);
       robotRef.current = robot;
-      applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current);
+      applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current, { instant: true });
     }, undefined, err => {
       if (!stopped) valuesRef.current.onLoadState({ phase: 'error', percent: 0, message: String(err?.message || err) });
       });
@@ -275,7 +275,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       const phase = benchmark?.active ? benchmark.phase : null;
       if (phase) {
         timeRef.current += dt;
-        applyMotion(robotRef.current, stage, phase.motion, timeRef.current);
+        applyMotion(robotRef.current, stage, phase.motion, timeRef.current, { deltaTime: dt });
         if (phase.orbit) {
           // Synthetic camera orbit approximates sustained mouse dragging.
           const offset = camera.position.clone().sub(controls.target);
@@ -287,7 +287,7 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
         // Resume normal motions after the one-time benchmark has finished.
         const duration = (MOTION_BY_ID[settings.motionId] || MOTION_BY_ID.idle).duration;
         if (settings.playing) timeRef.current = (timeRef.current + dt * settings.speed) % duration;
-        applyMotion(robotRef.current, stage, settings.motionId, timeRef.current);
+        applyMotion(robotRef.current, stage, settings.motionId, timeRef.current, { deltaTime: dt });
       }
       if (now - lastReport > 90) {
         settings.onProgress(timeRef.current);
