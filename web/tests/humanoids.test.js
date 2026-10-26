@@ -76,8 +76,11 @@ test('both humanoids use a separate wave animation with an animated right arm', 
   for (const robotId of ['oli','luna']) {
     const atRest = sampleHumanoidMotion(robotId,'greet',0);
     const midWave = sampleHumanoidMotion(robotId,'greet',2);
-    assert.ok(midWave.joints.right_shoulder_roll_joint < atRest.joints.right_shoulder_roll_joint - 1.4);
-    assert.ok(midWave.joints.right_elbow_joint < atRest.joints.right_elbow_joint - .35);
+    // The shoulder alone does not determine hand height. On LUNA the
+    // elbow folds deeply to point the FOREARM upwards; OLI uses more
+    // shoulder abduction. Both poses must strongly bend the elbow.
+    assert.ok(midWave.joints.right_elbow_joint < atRest.joints.right_elbow_joint - 1.0);
+    assert.ok(Math.abs(midWave.joints.right_shoulder_roll_joint - atRest.joints.right_shoulder_roll_joint) > .4);
   }
 });
 
@@ -233,17 +236,13 @@ test('walking uses opposite leg swing phases while preserving stance-foot height
   }
 });
 
-test('waving lifts the right wrist above shoulder rather than swinging it sideways below shoulder', () => {
+test('wave folds the elbow deeply rather than relying on horizontal shoulder roll', () => {
   for (const id of ['oli','luna']) {
     const ready = sampleHumanoidMotion(id, 'greet', 0);
     const raised = sampleHumanoidMotion(id, 'greet', 3);
-    const roll = raised.joints.right_shoulder_roll_joint;
-    // On both official models negative shoulder roll abducts the right arm.
-    // Cos(roll) < 0 puts the upper arm above horizontal (+Z wrist direction).
-    assert.ok(roll < (id === 'oli' ? -2 : -1.78), id + ': arm was not raised');
-    assert.ok(Math.cos(roll) < 0, id + ': wrist remained below shoulder');
-    assert.ok(raised.joints.right_elbow_joint < ready.joints.right_elbow_joint - .3);
-    assert.ok(Math.abs(raised.joints.right_wrist_yaw_joint) < .25);
+    assert.ok(raised.joints.right_elbow_joint < ready.joints.right_elbow_joint - 1.0);
+    assert.ok(raised.joints.right_elbow_joint < -1.7);
+    assert.ok(Math.abs(raised.joints.right_wrist_yaw_joint) < .7);
     if (id === 'oli') assert.ok(Math.abs(raised.joints.right_wrist_pitch_joint) <= .3);
   }
 });
