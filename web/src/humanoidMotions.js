@@ -20,7 +20,7 @@ export const HUMANOID_MOTIONS = [
   },
   {
     id: 'walk', name: 'Walking Preview', group: 'BASIC MOTIONS', duration: 6,
-    description: 'In-place, alternating-foot walking preview with ground-level stance and lifted swing. Not a real control policy.',
+    description: 'Slower alternating-foot steps with a flexed-knee IK stance and controlled swing. Kinematic preview only.',
     icon: 'Footprints',
   },
   {
@@ -91,6 +91,9 @@ const PROFILES = {
     kneeRange: [-.087, 2.583],
     // Hip-pitch origin to knee includes roll/yaw link offsets in the URDF.
     gaitUpper: .467, gaitLower: .385,
+    // Avoid the near-straight-leg IK singularity of the original walk.
+    gaitKnee: .40,
+    waveLateral: { roll: -.24, elbow: -.10, pitch: .032 },
     wavePose: {
       // FK-calibrated right arm: wrist beside head, forearm angled upward.
       shoulderPitch: -.22, shoulderRoll: -1.89,
@@ -104,6 +107,8 @@ const PROFILES = {
     height: .88, upper: .365, lower: .417,
     kneeRange: [-.087266, 2.4435],
     gaitUpper: .3608, gaitLower: .417,
+    gaitKnee: .40,
+    waveLateral: { yaw: .20, elbow: -.16, pitch: -.043 },
     wavePose: {
       // LUNA's longer forearm needs elbow flexion to lift the hand, NOT
       // near-horizontal shoulder abduction (the old visual failure).
@@ -203,12 +208,14 @@ function reachHeight(cfg, knee) {
 }
 
 /** Approximate sagittal FK foot location relative to the hip-pitch axis. */
-function gaitFootHome(cfg) {
-  const q0 = -.12;
-  const knee0 = .24;
+function gaitFootHome(cfg, knee = cfg.gaitKnee) {
+  // Use the same sagittal two-link posture for both limbs. The previous
+  // 0.24 rad knee was nearly straight: tiny toe movements generated sudden
+  // knee-angle changes at the IK reach boundary.
+  const q0 = -.5 * knee;
   return {
-    x: -cfg.gaitUpper * Math.sin(q0) - cfg.gaitLower * Math.sin(q0 + knee0),
-    z: -cfg.gaitUpper * Math.cos(q0) - cfg.gaitLower * Math.cos(q0 + knee0),
+    x: -cfg.gaitUpper * Math.sin(q0) - cfg.gaitLower * Math.sin(q0 + knee),
+    z: -cfg.gaitUpper * Math.cos(q0) - cfg.gaitLower * Math.cos(q0 + knee),
   };
 }
 
@@ -260,25 +267,32 @@ export function sampleHumanoidMotion(robotId, motionId, seconds) {
     // treadmill-style preview with the torso staying near a fixed location,
     // not world-space walking or a validated contact-force controller.
     const home = gaitFootHome(cfg);
-    const progress = t * (5 / duration); // exactly five left/right cycles / loop
+    // Three full cycles in six seconds (0.5 Hz), instead of five (0.83 Hz):
+    // reduces foot accelerations and IK joint velocities substantially.
+    const progress = t * (3 / duration);
+    const neutralFoot = gaitFootHome(cfg, .24);
+    // Lower the pelvis to compensate the more flexed walking knees so that
+    // the nominal stance-foot plane remains at the original ground height.
+    pose.body.height += neutralFoot.z - home.z;
     for (const side of SIDES) {
       const phase = progress + (side === 'right' ? .5 : 0);
       const step = footStep(phase);
-      const stride = .082;  // 8.2 cm treadmill step travel
-      const lift = .038;    // 3.8 cm foot clearance
+      const stride = .068; // 6.8 cm in-place treadmill excursion
+      const lift = .030;   // 3 cm nominal clearance
       const q = solveFoot(home.x + stride * step.forward, home.z + lift * step.lift, cfg);
       j[side + '_hip_pitch_joint'] = q.hip;
       j[side + '_knee_joint'] = q.knee;
       j[side + '_ankle_pitch_joint'] = q.ankle;
-      // Opposite arm follows the moving leg; limit upper body movement.
-      j[side + '_shoulder_pitch_joint'] = -.15 * Math.sin(TAU * (phase + .5));
-      j[side + '_elbow_joint'] = -.28;
+      // Opposite-arm swing is small, smooth and synchronized to stance.
+      const armPhase = TAU * phase;
+      j[side + '_shoulder_pitch_joint'] = -.085 * Math.sin(armPhase);
+      j[side + '_elbow_joint'] = -.29 - .045 * (1 - Math.cos(armPhase));
     }
     const sway = Math.sin(TAU * progress);
-    j.waist_yaw_joint = .018 * sway;
-    j.head_yaw_joint = -.012 * sway;
-    // Keep pelvis world rotation/height fixed in this approximate IK preview:
-    // yaw/roll/bobbing here would drag nominally planted feet.
+    j.waist_yaw_joint = .012 * sway;
+    j.head_yaw_joint = -.008 * sway;
+    // No world-space root rotation; a turning pelvis would pull the
+    // nominal stance feet across the floor.
   } else if (id === 'squat') {
     // A deliberate in-place squat, separate from Walking Preview.
     // A single down-and-up repetition, with long holds and zero derivatives
@@ -321,16 +335,23 @@ export function sampleHumanoidMotion(robotId, motionId, seconds) {
     // finishes close to the right side of the head rather than far away.
     const target = cfg.wavePose;
     const wag = Math.sin(TAU * 1.05 * (t - 2.15));
-    j.right_shoulder_pitch_joint = lerp(.01, target.shoulderPitch, lift);
-    j.right_shoulder_roll_joint = lerp(-.14, target.shoulderRoll, lift);
-    j.right_shoulder_yaw_joint = target.shoulderYaw * lift + .055 * wave * wag;
-    j.right_elbow_joint = lerp(-.26, target.elbow, lift) + .075 * wave * wag;
-    // LUNA has only one actuated wrist axis. Use gentle wrist yaw + elbow
-    // motion; OLI can also add wrist roll for the visible greeting gesture.
-    j.right_wrist_yaw_joint = target.wristYaw * lift + .18 * wave * wag;
+    const lateral = wave * wag;
+    // These coupled coefficients are derived from each model's local URDF
+    // hand-position Jacobian. In the robot frame: +X is forward, +Y is
+    // left/right and +Z is up. Coefficients aim for +/-6-7 cm in Y while
+    // cancelling X (forward/back) and Z drift. Yaw-only wrist rotation
+    // barely moves the LUNA hand's center, so it cannot produce a wave.
+    const side = cfg.waveLateral;
+    j.right_shoulder_pitch_joint = lerp(.01, target.shoulderPitch, lift) + side.pitch * lateral;
+    j.right_shoulder_roll_joint = lerp(-.14, target.shoulderRoll, lift) + (side.roll || 0) * lateral;
+    j.right_shoulder_yaw_joint = target.shoulderYaw * lift + (side.yaw || 0) * lateral;
+    j.right_elbow_joint = lerp(-.26, target.elbow, lift) + side.elbow * lateral;
+    // Hand orientation changes subtly; the visible side-to-side motion
+    // comes from the shoulder/elbow, not fore-aft wrist wagging.
+    j.right_wrist_yaw_joint = target.wristYaw * lift + .035 * lateral;
     if (kind === 'oli') {
-      j.right_wrist_pitch_joint = target.wristPitch * lift + .08 * wave * wag;
-      j.right_wrist_roll_joint = target.wristRoll * lift + .18 * wave * wag;
+      j.right_wrist_pitch_joint = target.wristPitch * lift;
+      j.right_wrist_roll_joint = target.wristRoll * lift + .07 * lateral;
     }
     j.head_yaw_joint = -.10 * lift;
     // No lower-body/root turn; feet stay where they are.
