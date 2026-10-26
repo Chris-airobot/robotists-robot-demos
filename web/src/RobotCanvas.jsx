@@ -7,6 +7,7 @@ import URDFLoader from 'urdf-loader';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { getHumanoidStlStyle } from './robotMaterials.js';
 import { applyHumanoidMotion, HUMANOID_MOTION_BY_ID } from './humanoidMotions.js';
 import { ROBOT_BY_ID } from './robots.js';
 import { applyUnitreeMotion } from './unitreeMotions.js';
@@ -26,7 +27,10 @@ async function findRobotUrl(robotId) {
     const ready = await fetch(readyUrl, { cache: 'no-store' });
     // Vite may return index.html for a missing file, so inspect the marker.
     if (!ready.ok || !(await ready.text()).startsWith('ready: ' + robotId)) {
-      throw new Error('Missing official ' + model.name + ' mesh files. Run: python3 tools/install_unitree_models.py --robot ' + robotId);
+      const installer = ['oli', 'luna'].includes(robotId)
+        ? 'python3 tools/install_limx_models.py --robot ' + robotId
+        : 'python3 tools/install_unitree_models.py --robot ' + robotId;
+      throw new Error('Missing official ' + model.name + ' mesh files. Run: ' + installer);
     }
     return import.meta.env.BASE_URL + model.urdf;
   }
@@ -65,9 +69,15 @@ function createRobotLoader(manager) {
       const stl = new STLLoader(assetManager);
       if (!meshCache.has(url)) meshCache.set(url, stl.loadAsync(url));
       meshCache.get(url).then(geometry => {
-        const mat = material?.isMaterial ? material.clone() : new THREE.MeshStandardMaterial({
-          color: '#c8d0d8', roughness: .66, metalness: .12,
-        });
+        // OLI/LUNA STL files have no material groups or textures. Replace their
+        // monochrome ROS diffuse materials with per-part presentation colors.
+        // All other robots keep their own materials, unchanged.
+        const visualStyle = getHumanoidStlStyle(url);
+        const mat = visualStyle
+          ? new THREE.MeshStandardMaterial({ ...visualStyle })
+          : material?.isMaterial ? material.clone() : new THREE.MeshStandardMaterial({
+              color: '#c8d0d8', roughness: .66, metalness: .12,
+            });
         mat.side = THREE.DoubleSide;
         const mesh = new THREE.Mesh(geometry, mat);
         onComplete(mesh);
