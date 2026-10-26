@@ -254,3 +254,25 @@ test('wave folds the elbow deeply rather than relying on horizontal shoulder rol
     if (id === 'oli') assert.ok(Math.abs(raised.joints.right_wrist_pitch_joint) <= .3);
   }
 });
+
+test('walking preview uses slow three-cycle cadence without angular frame spikes', () => {
+  for (const id of ['oli','luna']) {
+    const duration = HUMANOID_MOTIONS.find(m => m.id === 'walk').duration;
+    assert.equal(duration, 6);
+    const dt = 1 / 60;
+    let previous = sampleHumanoidMotion(id, 'walk', 0);
+    let largestStep = 0;
+    for (let frame = 1; frame <= duration / dt; frame++) {
+      const pose = sampleHumanoidMotion(id, 'walk', frame * dt);
+      for (const joint of Object.keys(pose.joints)) {
+        const step = Math.abs(pose.joints[joint] - previous.joints[joint]);
+        largestStep = Math.max(largestStep, step);
+      }
+      previous = pose;
+    }
+    assert.ok(largestStep < .025, id + ': walking has sudden joint jumps at 60 Hz (' + largestStep + ')');
+    const start = sampleHumanoidMotion(id, 'walk', 0);
+    const wrap = sampleHumanoidMotion(id, 'walk', duration - .000001);
+    assert.ok(maxPoseDiff(start, wrap) < .0001, id + ': loop boundary not smooth');
+  }
+});
