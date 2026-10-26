@@ -26,9 +26,23 @@ const PALETTES = {
   },
 };
 
-/** Return a per-mesh palette entry, or null for non-LimX mesh URLs. */
+/**
+ * Return a per-mesh palette entry, or null for non-LimX mesh URLs.
+ *
+ * URDFLoader builds mesh paths with string concatenation (workingPath + URI).
+ * It passes e.g. "/oli/urdf/../meshes/base_link.STL" to loadMeshCb. The
+ * browser's fetch normalizes these dot-segments automatically, but our old
+ * regex did not; consequently every file used the white URDF fallback.
+ * Normalize the exact incoming path BEFORE the material lookup.
+ */
 export function getHumanoidStlStyle(meshUrl) {
-  const matched = String(meshUrl).match(/(?:^|\/)(oli|luna)\/meshes\/([^/?#]+)\.stl(?:[?#]|$)/i);
+  let pathname;
+  try {
+    pathname = new URL(String(meshUrl), 'https://robotists.local/').pathname;
+  } catch {
+    return null;
+  }
+  const matched = pathname.match(/(?:^|\/)(oli|luna)\/meshes\/([^/?#]+)\.stl$/i);
   if (!matched) return null;
   const robotId = matched[1].toLowerCase();
   const part = matched[2].toLowerCase();
