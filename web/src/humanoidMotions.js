@@ -1,14 +1,12 @@
 /**
  * LimX OLI / LUNA browser-only, non-physical humanoid demonstrations.
  *
- * The former "walk" motion swung joints sinusoidally without any ground
- * contact model, and the former "turn" rotated the entire pelvis and feet
- * as a rigid body. Both looked implausible (foot skating and floating).
- *
- * This revision deliberately replaces those misleading animations with
- * grounded, stationary demonstrations. OLI/LUNA have different link
- * lengths and joint ranges; their motions are not interchangeable with
- * MagicDog's foot-space quadruped trot.
+ * Walking uses a cautious in-place alternating foot trajectory with separate
+ * ground-level stance and elevated swing phases, solved with an approximate
+ * two-link sagittal inverse kinematics model calibrated to each LimX URDF.
+ * A demonstration only: it is NOT physical whole-body locomotion. Torso and
+ * gesture motions keep the pelvis and legs stationary to avoid foot skating.
+ * This model retains the original squat as a separate interaction.
  *
  * No assertion of dynamic stability, whole-body control, parallel linkage
  * actuation, genuine contact-force balance or hardware deployment.
@@ -21,9 +19,12 @@ export const HUMANOID_MOTIONS = [
     icon: 'Activity',
   },
   {
-    // Preserve id 'walk' for existing player / benchmarks, but do not present
-    // the previous ungrounded march as actual locomotion.
-    id: 'walk', name: 'Controlled Squat', group: 'BASIC MOTIONS', duration: 6,
+    id: 'walk', name: 'Walking Preview', group: 'BASIC MOTIONS', duration: 6,
+    description: 'In-place, alternating-foot walking preview with ground-level stance and lifted swing. Not a real control policy.',
+    icon: 'Footprints',
+  },
+  {
+    id: 'squat', name: 'Controlled Squat', group: 'BASIC MOTIONS', duration: 6,
     description: 'Synchronized hip, knee, ankle and pelvis-height motion with feet kept approximately level.',
     icon: 'Activity',
   },
@@ -88,12 +89,17 @@ const PROFILES = {
   oli: {
     height: .89, upper: .385, lower: .385,
     kneeRange: [-.087, 2.583],
+    // Hip-pitch origin to knee includes roll/yaw link offsets in the URDF.
+    gaitUpper: .467, gaitLower: .385,
+    waveRoll: -2.18,
     shoulderRollL: [-.087, 3.229],
     shoulderRollR: [-3.229, .087],
   },
   luna: {
     height: .88, upper: .365, lower: .417,
     kneeRange: [-.087266, 2.4435],
+    gaitUpper: .3608, gaitLower: .417,
+    waveRoll: -1.88,
     shoulderRollL: [-.087266, 1.9199],
     shoulderRollR: [-1.9199, .087266],
   },
@@ -185,6 +191,45 @@ function reachHeight(cfg, knee) {
   return cfg.upper * Math.cos(hip) + cfg.lower * Math.cos(hip + knee);
 }
 
+/** Approximate sagittal FK foot location relative to the hip-pitch axis. */
+function gaitFootHome(cfg) {
+  const q0 = -.12;
+  const knee0 = .24;
+  return {
+    x: -cfg.gaitUpper * Math.sin(q0) - cfg.gaitLower * Math.sin(q0 + knee0),
+    z: -cfg.gaitUpper * Math.cos(q0) - cfg.gaitLower * Math.cos(q0 + knee0),
+  };
+}
+
+/** 2-link IK in the model's hip/knee pitch convention: positive bent knee. */
+function solveFoot(x, z, cfg) {
+  const u = cfg.gaitUpper;
+  const l = cfg.gaitLower;
+  const radiusSq = Math.min(x * x + z * z, (u + l - .0002) ** 2);
+  const cosine = clamp((radiusSq - u * u - l * l) / (2 * u * l), -1, 1);
+  const knee = Math.acos(cosine);
+  const hip = Math.atan2(-x, -z) - Math.atan2(l * Math.sin(knee), u + l * Math.cos(knee));
+  return { hip, knee, ankle: -(hip + knee) };
+}
+
+/**
+ * In-place step with 62% stance duty and a continuous elevated swing arc.
+ * Both sides of the loop meet without joint or foot-position discontinuity.
+ */
+function footStep(phase) {
+  const p = ((phase % 1) + 1) % 1;
+  const stance = .62;
+  if (p < stance) {
+    return { forward: .5 - smoothstep(p / stance), lift: 0, support: true };
+  }
+  const u = (p - stance) / (1 - stance);
+  return {
+    forward: smoothstep(u) - .5,
+    lift: Math.sin(Math.PI * u) ** 2,
+    support: false,
+  };
+}
+
 export function sampleHumanoidMotion(robotId, motionId, seconds) {
   const id = HUMANOID_MOTION_BY_ID[motionId] ? motionId : 'idle';
   const kind = PROFILES[robotId] ? robotId : 'oli';
@@ -199,7 +244,32 @@ export function sampleHumanoidMotion(robotId, motionId, seconds) {
     j.waist_pitch_joint = .009 * Math.sin(TAU * t / 8);
     j.head_pitch_joint = -.004 * Math.sin(TAU * t / 8);
   } else if (id === 'walk') {
-    // A deliberate in-place squat; never mislabeled as walking.
+    // Unlike the old joint-angle sine-wave march, the feet have an explicit
+    // stationary-height stance and elevated swing path. The scene is a
+    // treadmill-style preview with the torso staying near a fixed location,
+    // not world-space walking or a validated contact-force controller.
+    const home = gaitFootHome(cfg);
+    const progress = t * (5 / duration); // exactly five left/right cycles / loop
+    for (const side of SIDES) {
+      const phase = progress + (side === 'right' ? .5 : 0);
+      const step = footStep(phase);
+      const stride = .082;  // 8.2 cm treadmill step travel
+      const lift = .038;    // 3.8 cm foot clearance
+      const q = solveFoot(home.x + stride * step.forward, home.z + lift * step.lift, cfg);
+      j[side + '_hip_pitch_joint'] = q.hip;
+      j[side + '_knee_joint'] = q.knee;
+      j[side + '_ankle_pitch_joint'] = q.ankle;
+      // Opposite arm follows the moving leg; limit upper body movement.
+      j[side + '_shoulder_pitch_joint'] = -.15 * Math.sin(TAU * (phase + .5));
+      j[side + '_elbow_joint'] = -.28;
+    }
+    const sway = Math.sin(TAU * progress);
+    j.waist_yaw_joint = .018 * sway;
+    j.head_yaw_joint = -.012 * sway;
+    // Keep pelvis world rotation/height fixed in this approximate IK preview:
+    // yaw/roll/bobbing here would drag nominally planted feet.
+  } else if (id === 'squat') {
+    // A deliberate in-place squat, separate from Walking Preview.
     // A single down-and-up repetition, with long holds and zero derivatives
     // at the endpoints and direction change.
     const depth = keyframe(t, [
@@ -230,16 +300,24 @@ export function sampleHumanoidMotion(robotId, motionId, seconds) {
     j.waist_roll_joint = -.015 * turn;
     j.waist_pitch_joint = .012 * Math.abs(turn);
   } else if (id === 'greet') {
-    const lift = envelope(t, .45, 1.55, 4.55, 5.65);
-    // Controlled wave (dominantly shoulder roll and elbow), relaxed head
-    // follows the raised hand. No continuous oscillation outside hold time.
-    const wave = envelope(t, 1.65, 1.90, 4.15, 4.45);
-    j.right_shoulder_roll_joint = -.14 - 1.12 * lift;
-    j.right_shoulder_pitch_joint = -.32 * lift;
-    j.right_elbow_joint = -.26 - .78 * lift;
-    j.right_wrist_yaw_joint = .27 * wave * Math.sin(TAU * 1.0 * (t - 1.85));
-    j.head_yaw_joint = -.14 * lift;
-    j.waist_yaw_joint = -.04 * lift;
+    const lift = envelope(t, .45, 1.60, 4.45, 5.70);
+    const wave = envelope(t, 1.85, 2.15, 4.05, 4.38);
+    // Right arm: shoulder roll is about the local +X axis and has NEGATIVE
+    // range to abduct the right arm. A -1.26 rad target left the hand below
+    // shoulder height. The corrected robot-specific limits raise the wrist
+    // above the shoulder: approx -2.18 rad OLI, -1.88 rad LUNA.
+    j.right_shoulder_roll_joint = lerp(-.14, cfg.waveRoll, lift);
+    j.right_shoulder_pitch_joint = -.14 * lift;
+    // Keep elbow moderately bent instead of folding the hand against torso.
+    const wag = Math.sin(TAU * 1.1 * (t - 2.15));
+    j.right_elbow_joint = -.26 - .39 * lift + .10 * wave * wag;
+    // LUNA does not have wrist pitch/roll DOFs, so its visible "wave" comes
+    // primarily from arm/forearm yaw; wrist yaw gives a small added accent.
+    j.right_shoulder_yaw_joint = .12 * lift + .13 * wave * wag;
+    j.right_wrist_yaw_joint = .15 * wave * wag;
+    if (kind === 'oli') j.right_wrist_pitch_joint = -.10 * lift + .16 * wave * wag;
+    j.head_yaw_joint = -.12 * lift;
+    j.waist_yaw_joint = -.035 * lift;
   } else if (id === 'inspect') {
     // Choreographed slow saccades and pauses, no fast bobbling.
     const gaze = keyframe(t, [
