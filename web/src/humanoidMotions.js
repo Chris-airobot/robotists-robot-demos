@@ -93,7 +93,7 @@ const PROFILES = {
     gaitUpper: .467, gaitLower: .385,
     // Avoid the near-straight-leg IK singularity of the original walk.
     gaitKnee: .40,
-    waveLateral: { roll: -.24, elbow: -.10, pitch: .032 },
+    waveLateral: { roll: -.095, yaw: -.10, elbow: -.095, pitch: .06 },
     wavePose: {
       // FK-calibrated right arm: wrist beside head, forearm angled upward.
       shoulderPitch: -.22, shoulderRoll: -1.89,
@@ -108,7 +108,7 @@ const PROFILES = {
     kneeRange: [-.087266, 2.4435],
     gaitUpper: .3608, gaitLower: .417,
     gaitKnee: .40,
-    waveLateral: { yaw: .20, elbow: -.16, pitch: -.043 },
+    waveLateral: { yaw: .152, elbow: -.122, pitch: -.0327 },
     wavePose: {
       // LUNA's longer forearm needs elbow flexion to lift the hand, NOT
       // near-horizontal shoulder abduction (the old visual failure).
@@ -338,8 +338,9 @@ export function sampleHumanoidMotion(robotId, motionId, seconds) {
     const lateral = wave * wag;
     // These coupled coefficients are derived from each model's local URDF
     // hand-position Jacobian. In the robot frame: +X is forward, +Y is
-    // left/right and +Z is up. Coefficients aim for +/-6-7 cm in Y while
-    // cancelling X (forward/back) and Z drift. Yaw-only wrist rotation
+    // left/right and +Z is up. Coefficients produce roughly 9-13 cm peak-
+    // to-peak in Y while keeping X drift below ~2.5 cm (OLI) / ~1 cm
+    // (LUNA) and preserving an upward, bent forearm on both sides. Yaw-only wrist rotation
     // barely moves the LUNA hand's center, so it cannot produce a wave.
     const side = cfg.waveLateral;
     j.right_shoulder_pitch_joint = lerp(.01, target.shoulderPitch, lift) + side.pitch * lateral;
