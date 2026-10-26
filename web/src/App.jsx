@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import RobotCanvas from './RobotCanvas.jsx';
 import { MOTIONS, MOTION_BY_ID } from './motions.js';
+import { ROBOTS, ROBOT_BY_ID } from './robots.js';
 
 const iconMap = { Activity, Footprints, Compass, Hand, ScanEye };
 function timeLabel(t) {
@@ -14,6 +15,7 @@ function timeLabel(t) {
 }
 
 export default function App() {
+  const [robotId, setRobotId] = useState('magicdog');
   const [motionId, setMotionId] = useState('idle');
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
@@ -25,7 +27,18 @@ export default function App() {
   const viewer = useRef(null);
   const seq = useRef(0);
   const motion = MOTION_BY_ID[motionId];
+  const robot = ROBOT_BY_ID[robotId];
 
+  const chooseRobot = id => {
+    if (id === robotId) return;
+    setRobotId(id);
+    setMotionId('idle');
+    setTime(0);
+    setSeek(null);
+    setPlaying(true);
+    setWireframe(false);
+    setLoad({ phase: 'loading', percent: 0 });
+  };
   const scrub = value => {
     setTime(value);
     setSeek({ value, seq: ++seq.current });
@@ -59,7 +72,7 @@ export default function App() {
           <span className="nav-disabled">About</span>
         </nav>
         <div className="header-tools">
-          <span className="version"><b/> EARLY PREVIEW <em>V0.1</em></span>
+          <span className="version"><b/> INTERACTIVE STUDIO <em>V0.2</em></span>
           <a className="github" title="GitHub repository" href="https://github.com/Chris-airobot/robotists-robot-demos" target="_blank" rel="noreferrer"><Github size={19}/></a>
         </div>
       </header>
@@ -67,33 +80,27 @@ export default function App() {
       <main className="main">
         <div className="intro">
           <div>
-            <div className="eyebrow crumb">EXPLORE <ChevronRight size={13}/> MOTION LIBRARY <span className="crumb-dash"/> 001 / MAGICDOG</div>
+            <div className="eyebrow crumb">EXPLORE <ChevronRight size={13}/> MOTION LIBRARY <span className="crumb-dash"/> {robot.index} / {robot.name.toUpperCase()}</div>
             <h1>Robots, <em>in motion.</em></h1>
             <p>Explore robot geometry in an interactive 3D space. Select a motion, orbit the camera, and discover the mechanics.</p>
           </div>
-          <div className="intro-right"><span className="live-dot"/> INTERACTIVE 3D ROBOT LIBRARY <span className="muted">01 / 04</span></div>
+          <div className="intro-right"><span className="live-dot"/> INTERACTIVE 3D ROBOT LIBRARY <span className="muted">03 / 03</span></div>
         </div>
 
         <div className="workspace">
           <aside className="sidebar library">
-            <div className="pane-title"><div><span className="eyebrow">SELECT A ROBOT</span><h2>Robot collection</h2></div><span className="badge">01</span></div>
-            <button type="button" className="robot active">
-              <span className="robot-icon"><Box size={26} strokeWidth={1.5}/></span>
-              <span className="robot-text"><strong>MagicDog</strong><small>Quadruped · MagicLab</small></span>
-              <Check size={16} className="accent"/>
-            </button>
-            <div className="category-header">COMING NEXT <span>03</span></div>
-            {[
-              ['OLI / LUNA', 'LimX Dynamics'],
-              ['GR-3', 'Fourier Intelligence'],
-              ['ADAM', 'PND Robotics'],
-            ].map(([name, maker]) => (
-              <div className="robot unavailable" key={name}>
-                <span className="robot-icon grey"><Box size={19}/></span>
-                <span className="robot-text"><strong>{name}</strong><small>{maker}</small></span>
-                <span className="soon">SOON</span>
-              </div>
+            <div className="pane-title"><div><span className="eyebrow">SELECT A ROBOT</span><h2>Robot collection</h2></div><span className="badge">{String(ROBOTS.length).padStart(2, '0')}</span></div>
+            {ROBOTS.map(item => (
+              <button key={item.id} type="button"
+                className={'robot ' + (item.id === robotId ? 'active' : '')}
+                aria-pressed={item.id === robotId}
+                onClick={() => chooseRobot(item.id)}>
+                <span className={'robot-icon ' + (item.id === robotId ? '' : 'grey')}><Box size={22} strokeWidth={1.5}/></span>
+                <span className="robot-text"><strong>{item.name}</strong><small>{item.category} · {item.brand}</small></span>
+                {item.id === robotId ? <Check size={16} className="accent"/> : <span className="soon">VIEW</span>}
+              </button>
             ))}
+            <div className="library-tip">Official Unitree meshes require one-time local installation. Select a robot to see its status.</div>
 
             <hr/>
             <div className="pane-title"><div><span className="eyebrow">PLAYBACK LIBRARY</span><h2>Explore motions</h2></div><span className="badge">0{MOTIONS.length}</span></div>
@@ -116,12 +123,13 @@ export default function App() {
                 })}
               </div>
             ))}
-            <div className="note"><Sparkles size={16}/><span>More robot models and animations are coming to the library.</span></div>
+            <div className="note"><Sparkles size={16}/><span>Three robots, one motion studio. More platforms coming soon.</span></div>
           </aside>
 
           <div className="center">
             <div className="stage-view" ref={viewer}>
               <RobotCanvas
+                robotId={robotId}
                 motionId={motionId}
                 playing={playing}
                 speed={speed}
@@ -135,11 +143,11 @@ export default function App() {
                 <span className="stage-tag"><span className={'live-dot ' + (load.phase === 'error' ? 'error' : '')}/>
                   {load.phase === 'ready' ? '3D VIEWER ACTIVE' : load.phase === 'error' ? 'MODEL ERROR' : 'LOADING MODEL'}
                 </span>
-                <span className="stage-tag muted-tag">KINEMATIC PREVIEW</span>
+                <span className="stage-tag muted-tag">KINEMATIC PREVIEW · {robot.index}/03</span>
               </div>
               <div className="stage-name">
-                <span className="eyebrow">MAGICLAB / QUADRUPED ROBOT</span>
-                <strong>MagicDog<small>_01</small></strong>
+                <span className="eyebrow">{robot.brand.toUpperCase()} / {robot.category.toUpperCase()}</span>
+                <strong>{robot.name}<small>_{robot.index}</small></strong>
               </div>
               <div className="stage-footer">
                 <span className="stage-hint"><Move3d size={16}/> Drag to rotate <b>·</b> Scroll to zoom</span>
@@ -152,8 +160,8 @@ export default function App() {
               {load.phase !== 'ready' && (
                 <div className="overlay">
                   <div className="spinner"><i/><i/><i/><i/></div>
-                  <strong>{load.phase === 'error' ? 'Could not load robot' : 'Preparing your 3D experience'}</strong>
-                  <p>{load.phase === 'error' ? load.message : 'Loading MagicDog geometry and materials…'}</p>
+                  <strong>{load.phase === 'error' ? 'Model not ready' : 'Preparing your 3D experience'}</strong>
+                  <p>{load.phase === 'error' ? load.message : 'Loading ' + robot.name + ' geometry and materials…'}</p>
                   {load.phase !== 'error' && <div className="loading-bar"><span style={{width: load.percent + '%'}}/></div>}
                 </div>
               )}
@@ -185,15 +193,15 @@ export default function App() {
 
           <aside className="sidebar detail">
             <span className="eyebrow">ROBOT PROFILE</span>
-            <h2 className="detail-heading">MagicDog <small>01</small></h2>
-            <p className="detail-desc">A closer look at the geometry and movement of a versatile quadruped platform.</p>
-            <div className="type-box"><span className="type-icon"><Box size={17}/></span><div><small>ROBOT CATEGORY</small><strong>Quadruped</strong></div></div>
+            <h2 className="detail-heading">{robot.name} <small>{robot.index}</small></h2>
+            <p className="detail-desc">{robot.description}</p>
+            <div className="type-box"><span className="type-icon"><Box size={17}/></span><div><small>ROBOT CATEGORY</small><strong>{robot.category}</strong></div></div>
             <div className="details">
               <div className="category-header">TECHNICAL DETAILS</div>
               {[
-                ['Manufacturer', 'MagicLab'],
-                ['Actuated joints', '12 DOF'],
-                ['Model format', 'URDF + OBJ'],
+                ['Manufacturer', robot.brand],
+                ['Actuated joints', robot.dof],
+                ['Model format', robot.format],
                 ['Rendering', 'Three.js'],
                 ['Preview mode', 'Kinematic'],
               ].map(([label, value]) => (
