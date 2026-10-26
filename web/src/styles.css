@@ -206,3 +206,52 @@ hr { border: 0; height: 1px; background: #eff1f4; width: 100%; margin: 19px 0 23
 @media (max-width: 540px) {
   .fps-meter { top: 61px; padding: 6px 8px; font-size: 9px; }
 }
+
+/* V0.2 — light studio styling without post-processing or shadow-map passes */
+.stage-view {
+  background:
+    radial-gradient(ellipse 75% 68% at 49% 47%, rgba(255,255,255,.99) 3%, rgba(245,248,251,.95) 61%, rgba(229,236,243,.92) 100%),
+    linear-gradient(150deg, #f9fbfe, #eef3f8);
+  border-color: #e0e7ee;
+  border-radius: 15px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.96), 0 10px 36px rgba(49,73,94,.045);
+}
+.robot-canvas canvas { touch-action: none; }
+.sidebar, .player {
+  box-shadow: 0 3px 20px rgba(49,73,94,.025);
+}
+.robot {
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.robot:not(.active):hover {
+  border-color: #d6e1e9;
+  background: #fbfcfe;
+  box-shadow: 0 4px 13px rgba(45,63,86,.045);
+  transform: translateY(-1px);
+}
+.robot.active { box-shadow: inset 3px 0 0 #ed8c6d; }
+.robot:focus-visible { outline-offset: 2px; }
+.library-tip {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #9da9b5;
+  padding: 4px 7px 8px;
+}
+.stage-tag {
+  border-color: #e3e9ed;
+  box-shadow: 0 4px 14px rgba(52,74,93,.055);
+  backdrop-filter: blur(8px);
+}
+.stage-name strong { text-shadow: 0 1px 0 rgba(255,255,255,.65); }
+.stage-actions {
+  box-shadow: 0 5px 18px rgba(65,78,90,.065);
+  backdrop-filter: blur(12px);
+}
+.stage-actions button {
+  transition: background .17s ease, color .17s ease, transform .17s ease;
+}
+.stage-actions button:hover { transform: translateY(-1px); }
+.motion-choice { transition: background .16s ease, color .16s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .robot, .stage-actions button, .motion-choice { transition: none; }
+}
