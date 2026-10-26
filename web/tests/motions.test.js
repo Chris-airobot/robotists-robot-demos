@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MOTIONS, applyMotion, sampleMotion } from '../src/motions.js';
+import { sampleUnitreeMotion, applyUnitreeMotion } from '../src/unitreeMotions.js';
 
 const LEGS = ['FL', 'FR', 'RL', 'RR'];
 const LIMITS = {
@@ -96,4 +97,40 @@ test('manual scrubbing instantly applies exact target pose', () => {
   applyMotion(robot, stage, 'walk', 1.35, { instant: true });
   assert.equal(values.FR_calf_joint, sampleMotion('walk', 1.35).joints.FR[2]);
   assert.equal(stage.position.y, sampleMotion('walk', 1.35).body.height);
+});
+
+test('Go2 and A1 remain within their URDF limits over five cyclic previews', () => {
+  for (const [robotId, limits] of [
+    ['go2', [[-1.0472, 1.0472], [-1.5708, 3.4907], [-2.7227, -.83776]]],
+    ['a1', [[-.802851455, .802851455], [-1.047197551, 4.188790204], [-2.696533694, -.916297857]]],
+  ]) {
+    for (const motion of MOTIONS) {
+      for (let n = 0; n <= 300; n++) {
+        const pose = sampleUnitreeMotion(robotId, motion.id, motion.duration * n / 300);
+        for (const leg of LEGS) {
+          for (let joint = 0; joint < 3; joint++) {
+            const angle = pose.joints[leg][joint];
+            assert.ok(Number.isFinite(angle));
+            assert.ok(angle >= limits[joint][0] - .00001, robotId + ' ' + motion.id + ' joint below limit');
+            assert.ok(angle <= limits[joint][1] + .00001, robotId + ' ' + motion.id + ' joint above limit');
+          }
+        }
+      }
+      const a = sampleUnitreeMotion(robotId, motion.id, motion.duration - .00001);
+      const b = sampleUnitreeMotion(robotId, motion.id, 0);
+      assert.ok(difference(a, b) < .001, robotId + '/' + motion.id + ' is not loop-safe');
+    }
+  }
+});
+
+test('Go2 and A1 preview pose is applied to correct URDF joint names', () => {
+  for (const robotId of ['go2', 'a1']) {
+    const values = {};
+    const robot = { setJointValue(name, value) { values[name] = value; } };
+    const stage = { position: { y: 0 }, rotation: { set() {} } };
+    applyUnitreeMotion(robot, stage, robotId, 'walk', .5, { instant: true });
+    assert.equal(Object.keys(values).length, 12);
+    const pose = sampleUnitreeMotion(robotId, 'walk', .5);
+    assert.equal(values.RR_calf_joint, pose.joints.RR[2]);
+  }
 });
