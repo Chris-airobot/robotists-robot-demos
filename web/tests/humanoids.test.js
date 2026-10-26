@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { HUMANOID_MOTIONS, sampleHumanoidMotion, applyHumanoidMotion } from '../src/humanoidMotions.js';
+import { getHumanoidStlStyle } from '../src/robotMaterials.js';
+import { ROBOTS } from '../src/robots.js';
 
 const root = new URL('../../models/', import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('limx_assets.json', root), 'utf8'));
@@ -93,4 +95,33 @@ test('humanoid application writes exactly the manufacturer joints, blends switch
   assert.ok(Math.abs(values.right_shoulder_roll_joint - a) < .01);
   for (let frame=0; frame<28; frame++) applyHumanoidMotion(robot,stage,'oli','greet',2,{deltaTime:1/60});
   assert.equal(Object.keys(values).length,31);
+});
+
+test('public robot selector excludes the unavailable G1 placeholder', () => {
+  assert.deepEqual(ROBOTS.map(robot => robot.id), ['magicdog','go2','a1','oli','luna']);
+  assert.equal(new Set(ROBOTS.map(robot => robot.index)).size, ROBOTS.length);
+});
+
+test('every LimX visual STL gets a presentation material; no non-LimX files are recolored', () => {
+  assert.equal(getHumanoidStlStyle('https://localhost:5173/magicdog/meshes/base.obj'), null);
+  assert.equal(getHumanoidStlStyle('https://localhost:5173/go2/meshes/base.dae'), null);
+  assert.equal(getHumanoidStlStyle('/g1/meshes/base_link.stl'), null);
+  for (const robotId of ['oli', 'luna']) {
+    const files = manifest.robots[robotId].files;
+    const styles = files.map(file => {
+      const style = getHumanoidStlStyle('http://127.0.0.1:5173/' + robotId + '/meshes/' + file.name);
+      assert.ok(style, robotId + '/' + file.name + ' has no style');
+      assert.match(style.color, /^#[0-9a-f]{6}$/i);
+      assert.ok(style.roughness > 0 && style.roughness <= 1);
+      assert.ok(style.metalness >= 0 && style.metalness <= 1);
+      return style;
+    });
+    const unique = new Set(styles.map(x => x.color));
+    assert.ok(unique.size >= 3, robotId + ' palette is still monochrome');
+    assert.notEqual(
+      getHumanoidStlStyle('/' + robotId + '/meshes/base_link.STL').color,
+      getHumanoidStlStyle('/' + robotId + '/meshes/head_pitch_link.STL').color,
+      robotId + ' head visor and body must contrast',
+    );
+  }
 });
