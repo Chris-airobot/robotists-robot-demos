@@ -15,3 +15,7 @@ dist/
 
 # Local browser performance reports (not uploaded automatically)
 /web/benchmark-results/
+
+# Official Unitree mesh downloads (pin/checksums in models/unitree_assets.json)
+/models/go2/meshes/
+/models/a1/meshes/
