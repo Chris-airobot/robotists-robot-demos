@@ -209,3 +209,22 @@ lights and applies *A1-only* charcoal/dark-leg material styling to better
 match the production color scheme. Original mesh geometry, joint transforms
 and source asset files are unchanged. Check appearance in the real browser
 before making a public quality claim.
+
+### OLI / LUNA material diagnostics
+
+URDFLoader combines the URDF folder and each mesh's relative filename before
+passing it to the custom STL callback, for example:
+`/oli/urdf/../meshes/base_link.STL`. The callback normalizes these path
+segments before assigning robot-specific materials. Previously, the color
+lookup expected `/oli/meshes/base_link.STL` and silently fell back to the
+original near-white URDF material.
+
+In browser Developer Tools → Console, look for:
+
+    [Robotists] OLI STL colors: { expectedMeshes: 33, coloredMeshes: 33 }
+    [Robotists] LUNA STL colors: { expectedMeshes: 28, coloredMeshes: 28 }
+
+The values count *unique STL URLs*, not duplicate visual instances. If
+coloredMeshes is zero, ensure the latest Vite sources have been pulled and
+restart/force-refresh the viewer. Different color values do not add missing
+textures or turn a monochrome STL into a photorealistic product model.
