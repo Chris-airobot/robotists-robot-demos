@@ -219,9 +219,10 @@ test('walking uses opposite leg swing phases while preserving stance-foot height
     for (let frame = 0; frame < 6 * 120; frame++) {
       const t = frame / 120;
       const p = sampleHumanoidMotion(id, 'walk', t);
+      const bob = .002 * (1 - Math.cos(2 * 2 * Math.PI * t * 3 / 6));
       assert.ok(
-        Math.abs(p.body.height + walkingZ - (idleHeight + neutralZ)) < 1e-6,
-        id + ': walking pelvis height should preserve absolute stance floor',
+        Math.abs(p.body.height + walkingZ - bob - (idleHeight + neutralZ)) < 1e-6,
+        id + ': walking pelvis bob should be compensated by foot IK',
       );
       for (const [side, offset] of [['left', 0], ['right', .5]]) {
         const phase = (t * 3 / 6 + offset) % 1;
@@ -230,9 +231,12 @@ test('walking uses opposite leg swing phases while preserving stance-foot height
         const ankle = p.joints[side + '_ankle_pitch_joint'];
         const footZ = -thigh * Math.cos(hip) - calf * Math.cos(hip + knee);
         if (phase < .62) {
-          maxStanceDrift = Math.max(maxStanceDrift, Math.abs(footZ - walkingZ));
+          // Test world-height rather than pelvis-local height now that
+          // the whole pelvis bobs up and down throughout the gait.
+          maxStanceDrift = Math.max(maxStanceDrift,
+            Math.abs((p.body.height + footZ) - (idleHeight + neutralZ)));
         } else {
-          maxSwingClearance = Math.max(maxSwingClearance, footZ - walkingZ);
+          maxSwingClearance = Math.max(maxSwingClearance, footZ - (walkingZ - bob));
         }
         assert.ok(Math.abs(hip + knee + ankle) < 1e-8, id + ' lost foot pitch compensation');
       }
@@ -275,4 +279,50 @@ test('walking preview uses slow three-cycle cadence without angular frame spikes
     const wrap = sampleHumanoidMotion(id, 'walk', duration - .000001);
     assert.ok(maxPoseDiff(start, wrap) < .0001, id + ': loop boundary not smooth');
   }
+});
+
+test('walking shifts weight, counter-rotates upper body and compensates both stance legs', () => {
+  for (const [id, legHeight] of [['oli', .85], ['luna', .78]]) {
+    const idle = sampleHumanoidMotion(id, 'idle', 0);
+    const samples = [];
+    for (let frame = 0; frame <= 6 * 120; frame++) {
+      const p = sampleHumanoidMotion(id, 'walk', frame / 120);
+      samples.push(p);
+      const hipRoll = -Math.asin(p.body.lateral / legHeight);
+      // Translating the pelvis without opposing hip roll would drag the
+      // stance foot sideways. Ankle roll removes nominal foot tilt.
+      for (const side of ['left', 'right']) {
+        assert.ok(Math.abs(p.joints[side + '_hip_roll_joint'] - hipRoll) < 1e-8);
+        assert.ok(Math.abs(p.joints[side + '_ankle_roll_joint'] + hipRoll) < 1e-8);
+      }
+    }
+    const lat = samples.map(p => p.body.lateral);
+    const heights = samples.map(p => p.body.height);
+    const arms = samples.map(p => p.joints.left_shoulder_pitch_joint);
+    const waist = samples.map(p => p.joints.waist_yaw_joint);
+    assert.ok(Math.max(...lat) > .015 && Math.min(...lat) < -.015, id + ' missing pelvic weight shift');
+    assert.ok(Math.max(...heights) - Math.min(...heights) >= .0039, id + ' pelvis is frozen vertically');
+    assert.ok(Math.max(...arms) - Math.min(...arms) >= .37, id + ' arm swing is too small');
+    assert.ok(Math.max(...waist) - Math.min(...waist) >= .085, id + ' waist is still fixed');
+    assert.equal(idle.body.lateral, 0, 'idle must center pelvis');
+    assert.equal(sampleHumanoidMotion(id, 'greet', 2).body.lateral, 0, 'wave must not inherit walking sway');
+    assert.ok(Math.abs(samples[0].body.lateral - samples.at(-1).body.lateral) < 1e-8);
+  }
+});
+
+test('humanoid apply writes pelvis side shift and returns to centered position after blend', () => {
+  const robotId = 'luna';
+  const joints = parseJoints(readFileSync(new URL('luna/urdf/luna.urdf', root), 'utf8'));
+  const robot = {
+    joints: Object.fromEntries(Object.keys(joints).map(name => [name, {}])),
+    setJointValue() {},
+  };
+  const stage = { position: { y: 0, z: 0 }, rotation: { set() {} } };
+  applyHumanoidMotion(robot, stage, robotId, 'walk', .5, { instant: true });
+  assert.ok(Math.abs(stage.position.z) > .015, 'pelvis was not moved sideways');
+  applyHumanoidMotion(robot, stage, robotId, 'idle', 0, { deltaTime: 1 / 60 });
+  for (let frame = 0; frame < 60; frame++) {
+    applyHumanoidMotion(robot, stage, robotId, 'idle', 0, { deltaTime: 1 / 60 });
+  }
+  assert.ok(Math.abs(stage.position.z) < 1e-8, 'walking lateral sway remained after switching motions');
 });
