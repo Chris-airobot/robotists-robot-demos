@@ -57,7 +57,7 @@ be verified interactively before publication. Original MagicDog and Go2
 visualization data remain unchanged.
 
 
-### Humanoid motion polish (v0.3.2)
+### Humanoid motion polish (v0.3.3)
 
 The first-generation humanoid motions were joint-angle sine waves. They made
 the robots move, but moving the whole root while the feet remained attached
@@ -66,20 +66,23 @@ to the pelvis caused obvious skating and implausible transitions.
 Current OLI/LUNA previews use conservative, model-specific poses:
 
 - **Ready Stance:** fixed pelvis, subtle waist/head breathing.
-- **Walking Preview:** slow, alternating in-place walking steps generated
-  from sagittal foot-space trajectories with 62% nominal stance and
-  elevated swing phases, plus two-link IK and ankle pitch compensation.
-  This does **not** model real whole-body balance, physical foot forces
-  or full 3D foot-contact constraints.
+- **Walking Preview:** slower (3 vs 5 cycles per 6 seconds),
+  alternating in-place steps generated from sagittal foot-space trajectories
+  with 62% nominal stance and elevated swing phases. More flexed knees
+  reduce near-singular IK joint swings; a matching pelvis-height offset
+  keeps the sagittal stance-foot floor level and the ankle compensates
+  foot pitch. This does **not** model real whole-body balance, physical
+  contact forces or full 3D foot-contact constraints.
 - **Controlled Squat:** approximate matched hip/knee/ankle coordination and
   pelvis lowering from a two-link sagittal reach model.
 - **Torso Turn:** head + waist move while the pelvis/legs stay stationary.
-- **Wave Hello:** robot-specific right shoulder pitch/roll/yaw and a
-  clearly flexed elbow bring the hand near the right side of the head;
-  the forearm then points upwards instead of sticking out sideways.
-  LUNA has wrist yaw only, whereas OLI also has wrist pitch/roll.
-  The 3D hand/elbow/head placement is checked using each model's official
-  URDF forward kinematics in `tests/humanoidWaveFK.test.js`.
+- **Wave Hello:** right shoulder pitch/roll/yaw and a flexed elbow
+  position the right hand near the head. The new wave couples these joints
+  differently for OLI and LUNA based on each official URDF's hand-position
+  Jacobian: lateral hand displacement dominates front/back movement,
+  with upward forearm and head clearance also checked at swing extremes.
+  LUNA has wrist yaw only, whereas OLI supports wrist pitch/roll.
+  Validation is in `tests/humanoidWaveFK.test.js`.
 - **Look Around:** look/hold/look/hold timing rather than rapid sine bobbing.
 - **Reach Forward:** forward reach and hold with a stationary lower body.
 
