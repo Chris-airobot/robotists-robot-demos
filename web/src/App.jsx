@@ -84,7 +84,7 @@ export default function App() {
           <span className="nav-disabled">About</span>
         </nav>
         <div className="header-tools">
-          <span className="version"><b/> INTERACTIVE STUDIO <em>V0.3.1</em></span>
+          <span className="version"><b/> INTERACTIVE STUDIO <em>V0.3.4</em></span>
           <a className="github" title="GitHub repository" href="https://github.com/Chris-airobot/robotists-robot-demos" target="_blank" rel="noreferrer"><Github size={19}/></a>
         </div>
       </header>
