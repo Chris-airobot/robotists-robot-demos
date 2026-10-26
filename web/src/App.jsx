@@ -47,8 +47,17 @@ export default function App() {
     setSeek({ value, seq: ++seq.current });
   };
   const chooseMotion = id => {
-    setMotionId(id);
-    scrub(0);
+    if (id === motionId) {
+      // Restart is a user-requested seek, so applying it immediately is OK.
+      scrub(0);
+    } else {
+      // Do not call scrub() when selecting a new motion: a seek instructs
+      // RobotCanvas to instant-apply the first pose, skipping joint blending.
+      // Let the motion's effect reset the time and use the 650ms crossfade.
+      setSeek(null);
+      setTime(0);
+      setMotionId(id);
+    }
     setPlaying(true);
   };
   const changeSpeed = () => {
@@ -75,7 +84,7 @@ export default function App() {
           <span className="nav-disabled">About</span>
         </nav>
         <div className="header-tools">
-          <span className="version"><b/> INTERACTIVE STUDIO <em>V0.3</em></span>
+          <span className="version"><b/> INTERACTIVE STUDIO <em>V0.3.1</em></span>
           <a className="github" title="GitHub repository" href="https://github.com/Chris-airobot/robotists-robot-demos" target="_blank" rel="noreferrer"><Github size={19}/></a>
         </div>
       </header>
