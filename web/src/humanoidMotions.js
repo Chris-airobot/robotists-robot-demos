@@ -93,6 +93,7 @@ const PROFILES = {
     gaitUpper: .467, gaitLower: .385,
     // Avoid the near-straight-leg IK singularity of the original walk.
     gaitKnee: .40,
+    gaitLegHeight: .85,
     waveLateral: { roll: -.095, yaw: -.10, elbow: -.095, pitch: .06 },
     wavePose: {
       // FK-calibrated right arm: wrist beside head, forearm angled upward.
@@ -108,6 +109,7 @@ const PROFILES = {
     kneeRange: [-.087266, 2.4435],
     gaitUpper: .3608, gaitLower: .417,
     gaitKnee: .40,
+    gaitLegHeight: .78,
     waveLateral: { yaw: .152, elbow: -.122, pitch: -.0327 },
     wavePose: {
       // LUNA's longer forearm needs elbow flexion to lift the hand, NOT
@@ -165,7 +167,9 @@ function makePose(robotId) {
       joints[side + '_wrist_roll_joint'] = 0;
     }
   }
-  return { body: { height: cfg.height, yaw: 0, roll: 0, pitch: 0 }, joints };
+  // "lateral" is a translation along the URDF +Y axis (left of robot).
+  // URDF +Y maps to Three.js -Z after the model's Z-up -> Y-up transform.
+  return { body: { height: cfg.height, lateral: 0, yaw: 0, roll: 0, pitch: 0 }, joints };
 }
 
 function constrain(pose, robotId) {
@@ -267,32 +271,59 @@ export function sampleHumanoidMotion(robotId, motionId, seconds) {
     // treadmill-style preview with the torso staying near a fixed location,
     // not world-space walking or a validated contact-force controller.
     const home = gaitFootHome(cfg);
-    // Three full cycles in six seconds (0.5 Hz), instead of five (0.83 Hz):
-    // reduces foot accelerations and IK joint velocities substantially.
+    // Three cycles in six seconds (0.5 Hz), deliberately in place.
     const progress = t * (3 / duration);
+    const sway = Math.sin(TAU * progress);
+    const bob = .0020 * (1 - Math.cos(2 * TAU * progress)); // 0..4 mm
     const neutralFoot = gaitFootHome(cfg, .24);
-    // Lower the pelvis to compensate the more flexed walking knees so that
-    // the nominal stance-foot plane remains at the original ground height.
-    pose.body.height += neutralFoot.z - home.z;
+
+    // Natural walking does not freeze the pelvis. Move it toward the support
+    // foot during contralateral swing, then slightly upward near mid-stance.
+    // Smooth periodic COM shift: when the right leg swings, the pelvis shifts
+    // toward the left support leg, and vice versa.
+    pose.body.lateral = .017 * sway; // +/-17 mm in URDF left-right Y
+    pose.body.height += neutralFoot.z - home.z + bob;
+
     for (const side of SIDES) {
       const phase = progress + (side === 'right' ? .5 : 0);
       const step = footStep(phase);
       const stride = .068; // 6.8 cm in-place treadmill excursion
       const lift = .030;   // 3 cm nominal clearance
-      const q = solveFoot(home.x + stride * step.forward, home.z + lift * step.lift, cfg);
+
+      // When the pelvis rises, lower each leg's foot target by the same
+      // amount; nominal stance-foot Z remains fixed in world coordinates.
+      const q = solveFoot(
+        home.x + stride * step.forward,
+        home.z - bob + lift * step.lift,
+        cfg,
+      );
       j[side + '_hip_pitch_joint'] = q.hip;
       j[side + '_knee_joint'] = q.knee;
       j[side + '_ankle_pitch_joint'] = q.ankle;
-      // Opposite-arm swing is small, smooth and synchronized to stance.
-      const armPhase = TAU * phase;
-      j[side + '_shoulder_pitch_joint'] = -.085 * Math.sin(armPhase);
-      j[side + '_elbow_joint'] = -.29 - .045 * (1 - Math.cos(armPhase));
+
+      // Compensate the COM translation in the frontal plane using the
+      // hip/ankle roll pair. This is approximate geometric compensation,
+      // not a closed-loop whole-body balance or contact-force controller.
+      const hipRoll = -Math.asin(clamp(
+        pose.body.lateral / cfg.gaitLegHeight, -.1, .1,
+      ));
+      j[side + '_hip_roll_joint'] = hipRoll;
+      j[side + '_ankle_roll_joint'] = -hipRoll;
+
+      // Contralateral arm swing: when one leg is forward its arm moves back.
+      // In the OEM URDF a positive shoulder-pitch angle moves the hand back.
+      j[side + '_shoulder_pitch_joint'] = .39 * step.forward;
+      j[side + '_elbow_joint'] = -.34 - .045 * (1 - Math.cos(TAU * phase));
     }
-    const sway = Math.sin(TAU * progress);
-    j.waist_yaw_joint = .012 * sway;
-    j.head_yaw_joint = -.008 * sway;
-    // No world-space root rotation; a turning pelvis would pull the
-    // nominal stance feet across the floor.
+
+    // Upper body participates in locomotion: slight forward torso pitch,
+    // pelvic/shoulder counter-rotation, and a controlled side-to-side lean.
+    // Keep the root yaw/roll zero so we do not drag planted feet sideways.
+    j.waist_pitch_joint = .022 + .007 * Math.cos(2 * TAU * progress);
+    j.waist_roll_joint = .018 * sway;
+    j.waist_yaw_joint = .045 * sway;
+    j.head_yaw_joint = -.025 * sway;
+    j.head_pitch_joint = -.012;
   } else if (id === 'squat') {
     // A deliberate in-place squat, separate from Walking Preview.
     // A single down-and-up repetition, with long holds and zero derivatives
@@ -419,6 +450,9 @@ export function applyHumanoidMotion(robot, stage, robotId, id, seconds, options 
     if (transition.elapsed >= .65) transition = null;
   }
   stage.position.y = pose.body.height;
+  // The rig's Z-up-to-Y-up rotation maps URDF left (+Y) to scene -Z.
+  // Reset this outside walking as well so motion crossfades are reversible.
+  stage.position.z = -pose.body.lateral;
   stage.rotation.set(pose.body.roll, pose.body.yaw, pose.body.pitch, 'YXZ');
   for (const [joint, value] of Object.entries(pose.joints)) {
     if (robot.joints?.[joint]) robot.setJointValue(joint, value);
