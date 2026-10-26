@@ -66,10 +66,10 @@ function createRobotLoader(manager) {
       meshCache.get(url).then(source => {
         // Share mesh geometry, but keep individual joint transform instances.
         const clone = source.clone(true);
-        // Original Unitree A1 Collada exports contain Blender's studio Camera
-        // and Light nodes inside EVERY mesh file. URDF visual geometry must
+        // Some original Unitree A1 Collada exports contain Blender's studio Camera
+        // and Light nodes inside the mesh file. URDF visual geometry must
         // contain only the part geometry, never scene lighting/cameras.
-        // Dropping these nodes avoids 10+ stray point lights while preserving
+        // Dropping these nodes prevents stray point lights while preserving
         // local mesh transforms from the manufacturer's DAE.
         const extras = [];
         clone.traverse(node => {
