@@ -94,6 +94,12 @@ def main() -> None:
             f"\n{len(failures)} download(s) failed. Already downloaded files "
             "are safe and verified; rerun the same command to resume."
         )
+    for robot in robots:
+        marker = ROOT / "models" / robot / "meshes" / "asset-ready.txt"
+        marker.write_text(
+            f"ready: {robot} from {MODEL_REPO}@{COMMIT}\n",
+            encoding="utf-8",
+        )
     print("\nAll assets ready. Run the Vite web viewer and select Go2 or A1.", flush=True)
 
 
