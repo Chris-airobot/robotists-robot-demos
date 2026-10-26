@@ -1,0 +1,83 @@
+{
+  "sourceRepo": "unitreerobotics/unitree_ros",
+  "sourceCommit": "15ebe53f4cd77e7d745ae83b9d7ff90e685e8998",
+  "license": "BSD-3-Clause",
+  "robots": {
+    "go2": [
+      {
+        "remote": "robots/go2_description/dae/base.dae",
+        "name": "base.dae",
+        "gitBlobSha": "4e47b5bec4a3c91ae4a1d49d73080d697a917cf1",
+        "bytes": 10727399
+      },
+      {
+        "remote": "robots/go2_description/dae/hip.dae",
+        "name": "hip.dae",
+        "gitBlobSha": "1bec1a72feb8a5d941ad6767341bc1d79d7eff0d",
+        "bytes": 4666421
+      },
+      {
+        "remote": "robots/go2_description/dae/thigh.dae",
+        "name": "thigh.dae",
+        "gitBlobSha": "a17c0482f296f2e19849f2544bf309866adfb801",
+        "bytes": 3884136
+      },
+      {
+        "remote": "robots/go2_description/dae/calf.dae",
+        "name": "calf.dae",
+        "gitBlobSha": "83221779392a5d19af59561d0ea4eea48ef6102a",
+        "bytes": 1125517
+      },
+      {
+        "remote": "robots/go2_description/dae/foot.dae",
+        "name": "foot.dae",
+        "gitBlobSha": "22bfcf49d7b6d07015c88f55e4ca153463bd5d0e",
+        "bytes": 506988
+      },
+      {
+        "remote": "robots/go2_description/dae/thigh_mirror.dae",
+        "name": "thigh_mirror.dae",
+        "gitBlobSha": "fb424112d623ad912f75248bedb1f62c6c28d3b6",
+        "bytes": 3896575
+      },
+      {
+        "remote": "robots/go2_description/dae/calf_mirror.dae",
+        "name": "calf_mirror.dae",
+        "gitBlobSha": "413fd75d8b173b4597a35cc71e618a7d025069bd",
+        "bytes": 1125457
+      }
+    ],
+    "a1": [
+      {
+        "remote": "robots/a1_description/meshes/trunk.dae",
+        "name": "trunk.dae",
+        "gitBlobSha": "351f0c50f3692b3d64518fd1bc9fc8d425dda5b7",
+        "bytes": 4246287
+      },
+      {
+        "remote": "robots/a1_description/meshes/hip.dae",
+        "name": "hip.dae",
+        "gitBlobSha": "134ecef81ac2c02585d5051bfe1d856efa7436b0",
+        "bytes": 668998
+      },
+      {
+        "remote": "robots/a1_description/meshes/thigh.dae",
+        "name": "thigh.dae",
+        "gitBlobSha": "a867d6a7d0a6977a466bdda7b83c3abd18f12efe",
+        "bytes": 1151660
+      },
+      {
+        "remote": "robots/a1_description/meshes/thigh_mirror.dae",
+        "name": "thigh_mirror.dae",
+        "gitBlobSha": "8ca98eecd51f6f5d94d4d37dda1f246b45c2f364",
+        "bytes": 1187646
+      },
+      {
+        "remote": "robots/a1_description/meshes/calf.dae",
+        "name": "calf.dae",
+        "gitBlobSha": "ac4b964bb3a0874319b272e843332c896139f328",
+        "bytes": 1759398
+      }
+    ]
+  }
+}
