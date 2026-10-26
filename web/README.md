@@ -4,6 +4,22 @@
 LimX OLI and LimX LUNA. Viewer has robot-specific kinematic motion previews,
 smooth camera controls, and lightweight studio lighting.
 
+## Humanoid model visual fidelity and catalogue scope
+
+The selectable five-model library contains MagicDog, Go2, A1, **LimX OLI**
+and **LimX LUNA**. Unitree G1 was an incomplete legacy registry entry with
+no installed asset workflow and is **not exposed in the Robotist product
+selector**. Its old URDF is retained as a non-displayed repository asset,
+so no original source files are silently deleted.
+
+The official LimX STL files contain untextured visual geometry. Browser code
+uses an **OLI/LUNA-only, per-part approximation** of the manufacturer's
+silver/light body panels and black/charcoal joint and head finishes. This
+is not a manufacturer-supplied texture pack: the STL files cannot reproduce
+distinct visor glass, fabric finish or multi-material casing surfaces.
+The original URDFs and official meshes remain unchanged, and MagicDog,
+Go2 and A1 materials remain on their existing paths.
+
 ## Add Robotist catalogue humanoids
 
 Robotist's public catalogue includes LimX OLI and LimX LUNA, as well as
