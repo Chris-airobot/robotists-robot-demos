@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import RobotCanvas from './RobotCanvas.jsx';
 import { MOTIONS, MOTION_BY_ID } from './motions.js';
+import { HUMANOID_MOTIONS, HUMANOID_MOTION_BY_ID } from './humanoidMotions.js';
 import { ROBOTS, ROBOT_BY_ID } from './robots.js';
 
 const iconMap = { Activity, Footprints, Compass, Hand, ScanEye };
@@ -26,8 +27,10 @@ export default function App() {
   const [load, setLoad] = useState({ phase: 'loading', percent: 0 });
   const viewer = useRef(null);
   const seq = useRef(0);
-  const motion = MOTION_BY_ID[motionId];
   const robot = ROBOT_BY_ID[robotId];
+  const humanoid = robot.category === 'Humanoid';
+  const motions = humanoid ? HUMANOID_MOTIONS : MOTIONS;
+  const motion = (humanoid ? HUMANOID_MOTION_BY_ID : MOTION_BY_ID)[motionId];
 
   const chooseRobot = id => {
     if (id === robotId) return;
@@ -72,7 +75,7 @@ export default function App() {
           <span className="nav-disabled">About</span>
         </nav>
         <div className="header-tools">
-          <span className="version"><b/> INTERACTIVE STUDIO <em>V0.2</em></span>
+          <span className="version"><b/> INTERACTIVE STUDIO <em>V0.3</em></span>
           <a className="github" title="GitHub repository" href="https://github.com/Chris-airobot/robotists-robot-demos" target="_blank" rel="noreferrer"><Github size={19}/></a>
         </div>
       </header>
@@ -84,7 +87,7 @@ export default function App() {
             <h1>Robots, <em>in motion.</em></h1>
             <p>Explore robot geometry in an interactive 3D space. Select a motion, orbit the camera, and discover the mechanics.</p>
           </div>
-          <div className="intro-right"><span className="live-dot"/> INTERACTIVE 3D ROBOT LIBRARY <span className="muted">03 / 03</span></div>
+          <div className="intro-right"><span className="live-dot"/> INTERACTIVE 3D ROBOT LIBRARY <span className="muted">05 / 05</span></div>
         </div>
 
         <div className="workspace">
@@ -103,11 +106,11 @@ export default function App() {
             <div className="library-tip">Official Unitree meshes require one-time local installation. Select a robot to see its status.</div>
 
             <hr/>
-            <div className="pane-title"><div><span className="eyebrow">PLAYBACK LIBRARY</span><h2>Explore motions</h2></div><span className="badge">0{MOTIONS.length}</span></div>
+            <div className="pane-title"><div><span className="eyebrow">PLAYBACK LIBRARY</span><h2>Explore motions</h2></div><span className="badge">0{motions.length}</span></div>
             {['BASIC MOTIONS', 'INTERACTIONS'].map(group => (
               <div className="motion-group" key={group}>
                 <div className="category-header">{group}</div>
-                {MOTIONS.filter(m => m.group === group).map(item => {
+                {motions.filter(m => m.group === group).map(item => {
                   const Icon = iconMap[item.icon];
                   return (
                     <button key={item.id} type="button"
@@ -123,7 +126,7 @@ export default function App() {
                 })}
               </div>
             ))}
-            <div className="note"><Sparkles size={16}/><span>Three robots, one motion studio. More platforms coming soon.</span></div>
+            <div className="note"><Sparkles size={16}/><span>Official catalogue models with robot-specific previews. More platforms coming soon.</span></div>
           </aside>
 
           <div className="center">
@@ -143,7 +146,7 @@ export default function App() {
                 <span className="stage-tag"><span className={'live-dot ' + (load.phase === 'error' ? 'error' : '')}/>
                   {load.phase === 'ready' ? '3D VIEWER ACTIVE' : load.phase === 'error' ? 'MODEL ERROR' : 'LOADING MODEL'}
                 </span>
-                <span className="stage-tag muted-tag">KINEMATIC PREVIEW · {robot.index}/03</span>
+                <span className="stage-tag muted-tag">KINEMATIC PREVIEW · {robot.index}/05</span>
               </div>
               <div className="stage-name">
                 <span className="eyebrow">{robot.brand.toUpperCase()} / {robot.category.toUpperCase()}</span>
