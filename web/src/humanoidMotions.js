@@ -25,7 +25,7 @@ export const HUMANOID_MOTIONS = [
     // the previous ungrounded march as actual locomotion.
     id: 'walk', name: 'Controlled Squat', group: 'BASIC MOTIONS', duration: 6,
     description: 'Synchronized hip, knee, ankle and pelvis-height motion with feet kept approximately level.',
-    icon: 'Footprints',
+    icon: 'Activity',
   },
   {
     id: 'turn', name: 'Torso Turn', group: 'BASIC MOTIONS', duration: 6,
