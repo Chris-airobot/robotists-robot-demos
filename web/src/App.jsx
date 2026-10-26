@@ -85,7 +85,11 @@ export default function App() {
         </nav>
         <div className="header-tools">
           <span className="version"><b/> INTERACTIVE STUDIO <em>V0.3.4</em></span>
-          <a className="github" title="GitHub repository" href="https://github.com/Chris-airobot/robotists-robot-demos" target="_blank" rel="noreferrer"><Github size={19}/></a>
+          {import.meta.env.DEV && (
+            // Source repository is private. Do not send public website
+            // visitors to a GitHub link they cannot access.
+            <a className="github" title="Private GitHub repository (development only)" href="https://github.com/Chris-airobot/robotists-robot-demos" target="_blank" rel="noreferrer"><Github size={19}/></a>
+          )}
         </div>
       </header>
 
