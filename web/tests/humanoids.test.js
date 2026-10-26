@@ -76,8 +76,8 @@ test('both humanoids use a separate wave animation with an animated right arm', 
   for (const robotId of ['oli','luna']) {
     const atRest = sampleHumanoidMotion(robotId,'greet',0);
     const midWave = sampleHumanoidMotion(robotId,'greet',2);
-    assert.ok(midWave.joints.right_shoulder_roll_joint < atRest.joints.right_shoulder_roll_joint - .7);
-    assert.ok(midWave.joints.right_elbow_joint < atRest.joints.right_elbow_joint - .5);
+    assert.ok(midWave.joints.right_shoulder_roll_joint < atRest.joints.right_shoulder_roll_joint - 1.4);
+    assert.ok(midWave.joints.right_elbow_joint < atRest.joints.right_elbow_joint - .35);
   }
 });
 
@@ -143,8 +143,8 @@ test('URDFLoader dot-segment URLs match humanoid material palette after normaliz
 
 test('squat folds both legs symmetrically and lowers the pelvis without twisting planted feet', () => {
   for (const id of ['oli', 'luna']) {
-    const start = sampleHumanoidMotion(id, 'walk', 0);
-    const bottom = sampleHumanoidMotion(id, 'walk', 2.2);
+    const start = sampleHumanoidMotion(id, 'squat', 0);
+    const bottom = sampleHumanoidMotion(id, 'squat', 2.2);
     assert.ok(bottom.body.height < start.body.height - .04, id + ': pelvis did not descend');
     assert.equal(bottom.body.yaw, 0, id + ': pelvis must not spin on planted feet');
     assert.equal(bottom.body.roll, 0, id + ': pelvis must not lean on planted feet');
@@ -196,5 +196,54 @@ test('authored humanoid motion envelopes are continuous with bounded per-frame c
         prev = pose;
       }
     }
+  }
+});
+
+test('walking uses opposite leg swing phases while preserving stance-foot height', () => {
+  for (const [id, thigh, calf] of [
+    ['oli', .467, .385],
+    ['luna', .3608, .417],
+  ]) {
+    const homeZ = -thigh * Math.cos(-.12) - calf * Math.cos(.12);
+    let maxStanceDrift = 0;
+    let maxSwingClearance = 0;
+    let sampledLegAsymmetry = false;
+    for (let frame = 0; frame < 6 * 120; frame++) {
+      const t = frame / 120;
+      const p = sampleHumanoidMotion(id, 'walk', t);
+      assert.equal(p.body.height, sampleHumanoidMotion(id, 'idle', 0).body.height);
+      for (const [side, offset] of [['left', 0], ['right', .5]]) {
+        const phase = (t * 5 / 6 + offset) % 1;
+        const hip = p.joints[side + '_hip_pitch_joint'];
+        const knee = p.joints[side + '_knee_joint'];
+        const ankle = p.joints[side + '_ankle_pitch_joint'];
+        const footZ = -thigh * Math.cos(hip) - calf * Math.cos(hip + knee);
+        if (phase < .62) {
+          maxStanceDrift = Math.max(maxStanceDrift, Math.abs(footZ - homeZ));
+        } else {
+          maxSwingClearance = Math.max(maxSwingClearance, footZ - homeZ);
+        }
+        assert.ok(Math.abs(hip + knee + ankle) < 1e-8, id + ' lost foot pitch compensation');
+      }
+      if (Math.abs(p.joints.left_knee_joint - p.joints.right_knee_joint) > .02) sampledLegAsymmetry = true;
+    }
+    assert.ok(maxStanceDrift < .0005, id + ': sagittal stance foot is not height-locked');
+    assert.ok(maxSwingClearance > .025, id + ': swing feet do not lift');
+    assert.ok(sampledLegAsymmetry, id + ': feet are not alternating');
+  }
+});
+
+test('waving lifts the right wrist above shoulder rather than swinging it sideways below shoulder', () => {
+  for (const id of ['oli','luna']) {
+    const ready = sampleHumanoidMotion(id, 'greet', 0);
+    const raised = sampleHumanoidMotion(id, 'greet', 3);
+    const roll = raised.joints.right_shoulder_roll_joint;
+    // On both official models negative shoulder roll abducts the right arm.
+    // Cos(roll) < 0 puts the upper arm above horizontal (+Z wrist direction).
+    assert.ok(roll < (id === 'oli' ? -2 : -1.78), id + ': arm was not raised');
+    assert.ok(Math.cos(roll) < 0, id + ': wrist remained below shoulder');
+    assert.ok(raised.joints.right_elbow_joint < ready.joints.right_elbow_joint - .3);
+    assert.ok(Math.abs(raised.joints.right_wrist_yaw_joint) < .25);
+    if (id === 'oli') assert.ok(Math.abs(raised.joints.right_wrist_pitch_joint) <= .3);
   }
 });
