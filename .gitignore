@@ -22,3 +22,7 @@ dist/
 
 # Pinned official Unitree G1 binary meshes (downloaded locally)
 /models/g1/meshes/
+
+# Official LimX manufacturer STL downloads (manifests/checksums in models/limx_assets.json)
+/models/oli/meshes/
+/models/luna/meshes/
