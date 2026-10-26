@@ -140,3 +140,61 @@ test('URDFLoader dot-segment URLs match humanoid material palette after normaliz
     }
   }
 });
+
+test('squat folds both legs symmetrically and lowers the pelvis without twisting planted feet', () => {
+  for (const id of ['oli', 'luna']) {
+    const start = sampleHumanoidMotion(id, 'walk', 0);
+    const bottom = sampleHumanoidMotion(id, 'walk', 2.2);
+    assert.ok(bottom.body.height < start.body.height - .04, id + ': pelvis did not descend');
+    assert.equal(bottom.body.yaw, 0, id + ': pelvis must not spin on planted feet');
+    assert.equal(bottom.body.roll, 0, id + ': pelvis must not lean on planted feet');
+    for (const side of ['left','right']) {
+      const knee = bottom.joints[side + '_knee_joint'];
+      const hip = bottom.joints[side + '_hip_pitch_joint'];
+      const ankle = bottom.joints[side + '_ankle_pitch_joint'];
+      assert.ok(knee > start.joints[side + '_knee_joint'] + .45);
+      assert.ok(Math.abs(hip + knee + ankle) < 1e-8, 'nominal foot pitch is not compensated');
+      assert.ok(Math.abs(bottom.joints.left_knee_joint - bottom.joints.right_knee_joint) < 1e-9);
+    }
+  }
+});
+
+test('torso-turn and look-around keep the pelvis and all leg joints still', () => {
+  for (const id of ['oli', 'luna']) {
+    const atRest = sampleHumanoidMotion(id, 'idle', 0);
+    for (const motion of ['turn','inspect','greet','reach']) {
+      const duration = HUMANOID_MOTIONS.find(x => x.id === motion).duration;
+      for (const t of [1.8,2.6,3.8,5]) {
+        const pose = sampleHumanoidMotion(id, motion, Math.min(t, duration));
+        assert.equal(pose.body.height, atRest.body.height);
+        assert.equal(pose.body.yaw, 0);
+        assert.equal(pose.body.roll, 0);
+        for (const side of ['left','right']) {
+          for (const joint of ['hip_pitch','hip_roll','hip_yaw','knee','ankle_pitch','ankle_roll']) {
+            assert.equal(
+              pose.joints[side + '_' + joint + '_joint'],
+              atRest.joints[side + '_' + joint + '_joint'],
+              id + '/' + motion + ' moved a planted leg ' + side + '_' + joint,
+            );
+          }
+        }
+      }
+    }
+  }
+});
+
+test('authored humanoid motion envelopes are continuous with bounded per-frame changes', () => {
+  for (const id of ['oli','luna']) {
+    for (const motion of HUMANOID_MOTIONS) {
+      let prev = sampleHumanoidMotion(id, motion.id, 0);
+      for (let frame = 1; frame <= motion.duration * 120; frame++) {
+        const pose = sampleHumanoidMotion(id, motion.id, frame / 120);
+        assert.ok(
+          maxPoseDiff(prev, pose) < .05,
+          id + '/' + motion.id + ' abrupt change at frame ' + frame,
+        );
+        prev = pose;
+      }
+    }
+  }
+});
