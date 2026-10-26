@@ -207,24 +207,32 @@ test('walking uses opposite leg swing phases while preserving stance-foot height
     ['oli', .467, .385],
     ['luna', .3608, .417],
   ]) {
-    const homeZ = -thigh * Math.cos(-.12) - calf * Math.cos(.12);
+    // The walking controller uses a slightly bent knee (~0.40rad) to avoid
+    // the near-extension IK singularity. Root height is adjusted to keep
+    // the resulting ground contact at the same absolute world height.
+    const neutralZ = -thigh * Math.cos(-.12) - calf * Math.cos(.12);
+    const walkingZ = -thigh * Math.cos(-.20) - calf * Math.cos(.20);
+    const idleHeight = sampleHumanoidMotion(id, 'idle', 0).body.height;
     let maxStanceDrift = 0;
     let maxSwingClearance = 0;
     let sampledLegAsymmetry = false;
     for (let frame = 0; frame < 6 * 120; frame++) {
       const t = frame / 120;
       const p = sampleHumanoidMotion(id, 'walk', t);
-      assert.equal(p.body.height, sampleHumanoidMotion(id, 'idle', 0).body.height);
+      assert.ok(
+        Math.abs(p.body.height + walkingZ - (idleHeight + neutralZ)) < 1e-6,
+        id + ': walking pelvis height should preserve absolute stance floor',
+      );
       for (const [side, offset] of [['left', 0], ['right', .5]]) {
-        const phase = (t * 5 / 6 + offset) % 1;
+        const phase = (t * 3 / 6 + offset) % 1;
         const hip = p.joints[side + '_hip_pitch_joint'];
         const knee = p.joints[side + '_knee_joint'];
         const ankle = p.joints[side + '_ankle_pitch_joint'];
         const footZ = -thigh * Math.cos(hip) - calf * Math.cos(hip + knee);
         if (phase < .62) {
-          maxStanceDrift = Math.max(maxStanceDrift, Math.abs(footZ - homeZ));
+          maxStanceDrift = Math.max(maxStanceDrift, Math.abs(footZ - walkingZ));
         } else {
-          maxSwingClearance = Math.max(maxSwingClearance, footZ - homeZ);
+          maxSwingClearance = Math.max(maxSwingClearance, footZ - walkingZ);
         }
         assert.ok(Math.abs(hip + knee + ankle) < 1e-8, id + ' lost foot pitch compensation');
       }
