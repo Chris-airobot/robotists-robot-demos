@@ -5,6 +5,9 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import URDFLoader from 'urdf-loader';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+import { ROBOT_BY_ID } from './robots.js';
+import { applyUnitreeMotion } from './unitreeMotions.js';
 import { MOTION_BY_ID, applyMotion } from './motions.js';
 import { makeBenchmark, saveBenchmark } from './benchmark.js';
 
@@ -13,7 +16,18 @@ const ORIGINAL_URL = MODEL_ROOT + 'magicdog_repaint.urdf';
 const FAST_OBJ_URL = MODEL_ROOT + 'magicdog_fast.urdf';
 const EXPERIMENTAL_GLB_URL = MODEL_ROOT + 'magicdog_web.urdf';
 
-async function findRobotUrl() {
+async function findRobotUrl(robotId) {
+  if (robotId !== 'magicdog') {
+    const model = ROBOT_BY_ID[robotId];
+    if (!model) throw new Error('Unknown robot: ' + robotId);
+    const readyUrl = import.meta.env.BASE_URL + model.ready;
+    const ready = await fetch(readyUrl, { cache: 'no-store' });
+    // Vite may return index.html for a missing file, so inspect the marker.
+    if (!ready.ok || !(await ready.text()).startsWith('ready: ' + robotId)) {
+      throw new Error('Missing official ' + model.name + ' mesh files. Run: python3 tools/install_unitree_models.py --robot ' + robotId);
+    }
+    return import.meta.env.BASE_URL + model.urdf;
+  }
   // The original OBJ+MTL is the verified reference for color and assembly.
   // Never auto-select the experimental GLB (its appearance is not correct yet).
   // ?model=fast opts into the material-preserving reduced OBJ export.
@@ -37,6 +51,7 @@ async function findRobotUrl() {
 function createRobotLoader(manager) {
   const loader = new URDFLoader(manager);
   const gltfLoader = new GLTFLoader(manager);
+  const colladaLoader = new ColladaLoader(manager);
   loader.parseVisual = true;
   loader.parseCollision = false;
   const meshCache = new Map();
@@ -44,6 +59,27 @@ function createRobotLoader(manager) {
   // Version 0.13.x callback: (path, manager, material, onComplete).
   // Load the MTL repaint colors and parse each OBJ only once.
   loader.loadMeshCb = (url, assetManager, material, onComplete) => {
+    if (/\.dae(?:\?.*)?$/i.test(url)) {
+      if (!meshCache.has(url)) {
+        meshCache.set(url, colladaLoader.loadAsync(url).then(data => data.scene));
+      }
+      meshCache.get(url).then(source => {
+        // Share mesh geometry, but keep individual joint transform instances.
+        const clone = source.clone(true);
+        clone.traverse(node => {
+          if (!node.isMesh) return;
+          const mats = Array.isArray(node.material) ? node.material : [node.material];
+          node.material = mats.map(m => {
+            const copy = m.clone();
+            copy.side = THREE.DoubleSide;
+            return copy;
+          });
+          if (node.material.length === 1) node.material = node.material[0];
+        });
+        onComplete(clone);
+      }).catch(error => onComplete(null, error));
+      return;
+    }
     if (/\.glb(?:\?.*)?$/i.test(url)) {
       if (!meshCache.has(url)) {
         meshCache.set(url, gltfLoader.loadAsync(url).then(gltf => gltf.scene));
@@ -93,28 +129,43 @@ function createRobotLoader(manager) {
   return loader;
 }
 
-export default function RobotCanvas({ motionId, playing, speed, seek, resetCamera, wireframe, onProgress, onLoadState }) {
+export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, speed, seek, resetCamera, wireframe, onProgress, onLoadState }) {
   const containerRef = useRef(null);
   const robotRef = useRef(null);
   const stageRef = useRef(null);
   const controlsRef = useRef(null);
   const timeRef = useRef(0);
+  const cameraResetRef = useRef(null);
   const valuesRef = useRef({ motionId, playing, speed, onProgress, onLoadState });
   valuesRef.current = { motionId, playing, speed, onProgress, onLoadState };
 
   useEffect(() => {
     timeRef.current = 0;
     onProgress(0);
-  }, [motionId]);
+  }, [motionId, robotId]);
 
   useEffect(() => {
     if (seek && Number.isFinite(seek.value)) {
       timeRef.current = seek.value;
-      applyMotion(robotRef.current, stageRef.current, valuesRef.current.motionId, timeRef.current, { instant: true });
+      if (robotId === 'magicdog') {
+        applyMotion(robotRef.current, stageRef.current, valuesRef.current.motionId, timeRef.current, { instant: true });
+      } else {
+        applyUnitreeMotion(robotRef.current, stageRef.current, robotId, valuesRef.current.motionId, timeRef.current, { instant: true });
+      }
     }
   }, [seek]);
 
-  useEffect(() => { controlsRef.current?.reset(); }, [resetCamera]);
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls || !resetCamera) return;
+    cameraResetRef.current = {
+      started: performance.now(),
+      fromPosition: controls.object.position.clone(),
+      fromTarget: controls.target.clone(),
+      toPosition: controls.position0.clone(),
+      toTarget: controls.target0.clone(),
+    };
+  }, [resetCamera]);
 
   useEffect(() => {
     robotRef.current?.traverse(node => {
@@ -143,11 +194,12 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     el.appendChild(fpsOverlay);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#f6f8fa');
+    // Keep the original model colors; let the CSS studio gradient show through.
+    scene.background = null;
     const camera = new THREE.PerspectiveCamera(35, 1, .01, 50);
     camera.position.set(1.65, 1.15, 1.75);
     const renderer = new THREE.WebGLRenderer({
-      antialias: false, alpha: false, powerPreference: 'high-performance',
+      antialias: false, alpha: true, powerPreference: 'high-performance',
     });
     renderer.setPixelRatio(1); // 1x pixels instead of 2x (up to 75% fewer fragments)
     renderer.shadowMap.enabled = false; // high-polygon geometry + dynamic shadows is too costly
@@ -168,9 +220,10 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       console.info('Robotists: WebGL GPU renderer information unavailable in this browser');
     }
 
-    scene.add(new THREE.HemisphereLight('#ffffff', '#c4cfd8', 2.4));
-    const sun = new THREE.DirectionalLight('#ffffff', 3.2);
-    sun.position.set(2.5, 5, 3);
+    // Balanced three-point lighting: no costly real-time shadow map.
+    scene.add(new THREE.HemisphereLight('#ffffff', '#bac9d7', 1.9));
+    const sun = new THREE.DirectionalLight('#fff7f0', 2.35);
+    sun.position.set(3.6, 5, 4.2);
     sun.castShadow = false;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -2;
@@ -179,13 +232,17 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     sun.shadow.camera.bottom = -2;
     sun.shadow.bias = -.0002;
     scene.add(sun);
+    const fill = new THREE.DirectionalLight('#dbe9ff', .80);
+    fill.position.set(-3, 2.8, -3);
+    scene.add(fill);
 
     // A soft contact shadow needs no additional shadow-map render pass.
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = shadowCanvas.height = 128;
     const ctx = shadowCanvas.getContext('2d');
     const gradient = ctx.createRadialGradient(64, 64, 5, 64, 64, 64);
-    gradient.addColorStop(0, 'rgba(44, 58, 72, 0.20)');
+    gradient.addColorStop(0, 'rgba(38, 50, 63, 0.25)');
+    gradient.addColorStop(.50, 'rgba(43, 59, 76, 0.095)');
     gradient.addColorStop(1, 'rgba(44, 58, 72, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 128, 128);
@@ -200,6 +257,22 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
     shadow.position.y = .001;
     scene.add(shadow);
 
+    // Four approximate contact accents follow the animated URDF feet.
+    // This is only visual grounding; no physics or shadow-render pass.
+    const contactShadows = [];
+    const softContact = new THREE.CanvasTexture(shadowCanvas);
+    const contactGeometry = new THREE.PlaneGeometry(.18, .14);
+    for (const leg of ['FL','FR','RL','RR']) {
+      const decal = new THREE.Mesh(contactGeometry, new THREE.MeshBasicMaterial({
+        map: softContact, transparent: true, depthWrite: false, opacity: .78,
+      }));
+      decal.rotation.x = -Math.PI / 2;
+      decal.position.y = .008;
+      scene.add(decal);
+      contactShadows.push({ leg, decal });
+    }
+    const tempFootPosition = new THREE.Vector3();
+
     const grid = new THREE.GridHelper(8, 40, '#d8dfe7', '#e7ebf0');
     grid.position.y = -.009;
     grid.material.transparent = true;
@@ -212,12 +285,14 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = .065;
+    controls.dampingFactor = .085;
+    controls.rotateSpeed = .72;
+    controls.zoomSpeed = .77;
     controls.minDistance = .75;
     controls.maxDistance = 5;
     controls.minPolarAngle = .12;
     controls.maxPolarAngle = Math.PI / 2.04;
-    controls.target.set(0, .29, 0);
+    controls.target.set(0, ROBOT_BY_ID[robotId]?.groundHeight ?? .29, 0);
     controls.update();
     controls.saveState();
     controlsRef.current = controls;
@@ -245,14 +320,18 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
 
     const loader = createRobotLoader(manager);
     valuesRef.current.onLoadState({ phase: 'loading', percent: 0 });
-    findRobotUrl().then(url => {
+    findRobotUrl(robotId).then(url => {
       loadedModel = url;
       loader.load(url, robot => {
       if (stopped) return;
       robot.rotation.x = -Math.PI / 2; // URDF Z-up => Three.js Y-up
       stage.add(robot);
       robotRef.current = robot;
-      applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current, { instant: true });
+      if (robotId === 'magicdog') {
+        applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current, { instant: true });
+      } else {
+        applyUnitreeMotion(robot, stage, robotId, valuesRef.current.motionId, timeRef.current, { instant: true });
+      }
     }, undefined, err => {
       if (!stopped) valuesRef.current.onLoadState({ phase: 'error', percent: 0, message: String(err?.message || err) });
       });
@@ -275,7 +354,11 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       const phase = benchmark?.active ? benchmark.phase : null;
       if (phase) {
         timeRef.current += dt;
-        applyMotion(robotRef.current, stage, phase.motion, timeRef.current, { deltaTime: dt });
+        if (robotId === 'magicdog') {
+          applyMotion(robotRef.current, stage, phase.motion, timeRef.current, { deltaTime: dt });
+        } else {
+          applyUnitreeMotion(robotRef.current, stage, robotId, phase.motion, timeRef.current, { deltaTime: dt });
+        }
         if (phase.orbit) {
           // Synthetic camera orbit approximates sustained mouse dragging.
           const offset = camera.position.clone().sub(controls.target);
@@ -287,13 +370,38 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
         // Resume normal motions after the one-time benchmark has finished.
         const duration = (MOTION_BY_ID[settings.motionId] || MOTION_BY_ID.idle).duration;
         if (settings.playing) timeRef.current = (timeRef.current + dt * settings.speed) % duration;
-        applyMotion(robotRef.current, stage, settings.motionId, timeRef.current, { deltaTime: dt });
+        if (robotId === 'magicdog') {
+          applyMotion(robotRef.current, stage, settings.motionId, timeRef.current, { deltaTime: dt });
+        } else {
+          applyUnitreeMotion(robotRef.current, stage, robotId, settings.motionId, timeRef.current, { deltaTime: dt });
+        }
       }
       if (now - lastReport > 90) {
         settings.onProgress(timeRef.current);
         lastReport = now;
       }
+      // Ease the Reset Camera action instead of snapping the camera.
+      const tween = cameraResetRef.current;
+      if (tween) {
+        const p = Math.min(1, (now - tween.started) / 460);
+        const easing = 1 - Math.pow(1 - p, 3);
+        camera.position.lerpVectors(tween.fromPosition, tween.toPosition, easing);
+        controls.target.lerpVectors(tween.fromTarget, tween.toTarget, easing);
+        if (p === 1) cameraResetRef.current = null;
+      }
       controls.update();
+      if (robotRef.current?.links) {
+        robotRef.current.updateMatrixWorld(true);
+        for (const { leg, decal } of contactShadows) {
+          const foot = robotRef.current.links[leg + '_foot'] || robotRef.current.links[leg + '_foot_link'];
+          if (!foot) { decal.visible = false; continue; }
+          foot.getWorldPosition(tempFootPosition);
+          decal.visible = true;
+          decal.position.x = tempFootPosition.x;
+          decal.position.z = tempFootPosition.z;
+          decal.material.opacity = Math.max(.18, .78 - Math.max(0, tempFootPosition.y) * 5);
+        }
+      }
       renderer.render(scene, camera);
       benchmark?.sample(now, renderer.info.render);
       frameCount += 1;
@@ -317,13 +425,15 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
       benchmark?.dispose();
       controls.dispose();
       renderer.dispose();
+      softContact.dispose();
+      contactGeometry.dispose();
       if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
       if (fpsOverlay.parentElement === el) el.removeChild(fpsOverlay);
       robotRef.current = null;
       stageRef.current = null;
       controlsRef.current = null;
     };
-  }, []);
+  }, [robotId]);
 
   return <div className="robot-canvas" ref={containerRef} aria-label="3D interactive robot viewer" />;
 }
