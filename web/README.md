@@ -110,3 +110,29 @@ Interpretation:
 - Firefox can hide GPU details for privacy; run `about:support` if needed.
 - Headless automated browsers may select software rendering; this test uses your
   actual browser and avoids that source of misleading results.
+
+## Motion previews (October 2026)
+
+`src/motions.js` now uses foot-space trajectory generation instead of simply
+adding joint-angle sine waves:
+
+- **Walk:** diagonal-pair trot, with a separate stance segment and raised swing
+  segment. Joint angles come from 2-link sagittal inverse kinematics using the
+  20 cm MagicDog thigh and calf described in its URDF.
+- **Turn:** gentle, reversible yaw with counter-stepping on the left and right.
+- **Greet:** gradual right-front paw lift, hold, and return.
+- **Inspect:** slow scanning torso pose with small leg adjustments.
+- **All motions:** seamless cycle boundaries and ~360 ms quintic crossfades when
+  choosing another motion. Timeline scrubbing remains exact and immediate.
+
+These motions are **kinematic website illustrations only**. They are not
+measured motor trajectories, foot-contact simulations, validated control
+commands, or a physically stable locomotion policy. The robot URDF, visuals,
+and simulation assets are unchanged.
+
+Run motion regression checks:
+
+    npm run test:motions
+
+This validates URDF joint limits, smooth loop boundaries, diagonal coordination,
+crossfading, and timeline scrubbing without needing a GPU.
