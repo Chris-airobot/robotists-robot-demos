@@ -182,3 +182,14 @@ Run motion regression checks:
 
 This validates URDF joint limits, smooth loop boundaries, diagonal coordination,
 crossfading, and timeline scrubbing without needing a GPU.
+
+### A1 appearance note
+
+The A1 visual meshes are the public Unitree ROS simulator DAE parts, **not a
+photorealistic reconstruction of the production robot**. They omit product
+finishing and some visual details (such as electronics/cable assemblies).
+For browser display, `RobotCanvas.jsx` strips Blender-exported cameras and
+lights and applies *A1-only* charcoal/dark-leg material styling to better
+match the production color scheme. Original mesh geometry, joint transforms
+and source asset files are unchanged. Check appearance in the real browser
+before making a public quality claim.
