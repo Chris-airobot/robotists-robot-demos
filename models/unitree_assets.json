@@ -78,6 +78,218 @@
         "gitBlobSha": "ac4b964bb3a0874319b272e843332c896139f328",
         "bytes": 1759398
       }
+    ],
+    "g1": [
+      {
+        "remote": "robots/g1_description/meshes/pelvis.STL",
+        "name": "pelvis.STL",
+        "gitBlobSha": "691a779b9c9f4c97f48eaa9edf9eb336ca3b4411",
+        "bytes": 1060884
+      },
+      {
+        "remote": "robots/g1_description/meshes/pelvis_contour_link.STL",
+        "name": "pelvis_contour_link.STL",
+        "gitBlobSha": "42434339abf5a0a3816f890389e3e61af3b1e03c",
+        "bytes": 1805184
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_hip_pitch_link.STL",
+        "name": "left_hip_pitch_link.STL",
+        "gitBlobSha": "5b751c767ecf03b29c707b19f1faf5367e8d33d2",
+        "bytes": 181684
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_hip_roll_link.STL",
+        "name": "left_hip_roll_link.STL",
+        "gitBlobSha": "778437ffe61731915fa4cb7cf2390e9cbe738c43",
+        "bytes": 192184
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_hip_yaw_link.STL",
+        "name": "left_hip_yaw_link.STL",
+        "gitBlobSha": "383093ab96ed3a099ab79f5d6ed144fc0b7067a9",
+        "bytes": 296284
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_knee_link.STL",
+        "name": "left_knee_link.STL",
+        "gitBlobSha": "f2e98e54e8f1980eb62ad25c7a838044c23bbadf",
+        "bytes": 854884
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_ankle_pitch_link.STL",
+        "name": "left_ankle_pitch_link.STL",
+        "gitBlobSha": "69de8490184afc698f633e34bb74e65351bd4689",
+        "bytes": 71184
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_ankle_roll_link.STL",
+        "name": "left_ankle_roll_link.STL",
+        "gitBlobSha": "8864e9f98103190883d1ba027aba5469925f2bca",
+        "bytes": 653384
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_hip_pitch_link.STL",
+        "name": "right_hip_pitch_link.STL",
+        "gitBlobSha": "998a0a0f5c248b217cf82c5088d6d365d9654ecd",
+        "bytes": 181284
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_hip_roll_link.STL",
+        "name": "right_hip_roll_link.STL",
+        "gitBlobSha": "47b2eebdd36c7289679eebb9583c65a15514e194",
+        "bytes": 192684
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_hip_yaw_link.STL",
+        "name": "right_hip_yaw_link.STL",
+        "gitBlobSha": "371856427c7cc31ae7463c83f00ef6652c72d672",
+        "bytes": 296284
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_knee_link.STL",
+        "name": "right_knee_link.STL",
+        "gitBlobSha": "76d21a3d81e4e34520c5d6b3f28d7e43c1874364",
+        "bytes": 852284
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_ankle_pitch_link.STL",
+        "name": "right_ankle_pitch_link.STL",
+        "gitBlobSha": "e77d8a2fe1e5d56fac049833d254d6ffa4f6b350",
+        "bytes": 71184
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_ankle_roll_link.STL",
+        "name": "right_ankle_roll_link.STL",
+        "gitBlobSha": "d4261dd7ccf39dd9c54cad37c1982f1d50e6fccc",
+        "bytes": 653784
+      },
+      {
+        "remote": "robots/g1_description/meshes/waist_yaw_link_rev_1_0.STL",
+        "name": "waist_yaw_link_rev_1_0.STL",
+        "gitBlobSha": "0fabb63d37627cb77f64c5d2a46cf25d4acc66fc",
+        "bytes": 619984
+      },
+      {
+        "remote": "robots/g1_description/meshes/waist_roll_link_rev_1_0.STL",
+        "name": "waist_roll_link_rev_1_0.STL",
+        "gitBlobSha": "a64f330c592582dc31cdf38f4d08cfff06681c5f",
+        "bytes": 85884
+      },
+      {
+        "remote": "robots/g1_description/meshes/torso_link_rev_1_0.STL",
+        "name": "torso_link_rev_1_0.STL",
+        "gitBlobSha": "8a759a709750ad97e1f372db0ebbff246daedcc1",
+        "bytes": 2570584
+      },
+      {
+        "remote": "robots/g1_description/meshes/logo_link.STL",
+        "name": "logo_link.STL",
+        "gitBlobSha": "e9792098504b64b359fbffa983373e5e6fa1b50a",
+        "bytes": 243384
+      },
+      {
+        "remote": "robots/g1_description/meshes/head_link.STL",
+        "name": "head_link.STL",
+        "gitBlobSha": "2ee5fba15de3ccd4c31774bc7a66de7aeefab770",
+        "bytes": 932784
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_shoulder_pitch_link.STL",
+        "name": "left_shoulder_pitch_link.STL",
+        "gitBlobSha": "e698311fb12d3f22f018b668c40dab667c39b8d3",
+        "bytes": 176784
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_shoulder_roll_link.STL",
+        "name": "left_shoulder_roll_link.STL",
+        "gitBlobSha": "80bca84aca41137f8270fb35e263dcc5d9658e43",
+        "bytes": 400284
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_shoulder_yaw_link.STL",
+        "name": "left_shoulder_yaw_link.STL",
+        "gitBlobSha": "281e699055ffafe094f52a440547eb4b64f83bfa",
+        "bytes": 249184
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_elbow_link.STL",
+        "name": "left_elbow_link.STL",
+        "gitBlobSha": "1a96d99ba469960173129084ab6dd3bf8a732a71",
+        "bytes": 88784
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_wrist_roll_link.STL",
+        "name": "left_wrist_roll_link.STL",
+        "gitBlobSha": "f3c263a7ab3fc1e902bf2513064d4bc666c6b59f",
+        "bytes": 356184
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_wrist_pitch_link.STL",
+        "name": "left_wrist_pitch_link.STL",
+        "gitBlobSha": "82cc224a8e41251d879502f9809e31d0988ec7f9",
+        "bytes": 85984
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_wrist_yaw_link.STL",
+        "name": "left_wrist_yaw_link.STL",
+        "gitBlobSha": "31be4fd45fa18987b35b3386fdce2ce98c798774",
+        "bytes": 318684
+      },
+      {
+        "remote": "robots/g1_description/meshes/left_rubber_hand.STL",
+        "name": "left_rubber_hand.STL",
+        "gitBlobSha": "c44830f1fd519ee28750cad04d7d0adb209c265f",
+        "bytes": 2287484
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_shoulder_pitch_link.STL",
+        "name": "right_shoulder_pitch_link.STL",
+        "gitBlobSha": "3f5b4ed47ade68e83f617ef3fd65cb810e9b0e07",
+        "bytes": 176784
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_shoulder_roll_link.STL",
+        "name": "right_shoulder_roll_link.STL",
+        "gitBlobSha": "179d61753d48b3a55165b81ded2c14e84deb81c2",
+        "bytes": 401884
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_shoulder_yaw_link.STL",
+        "name": "right_shoulder_yaw_link.STL",
+        "gitBlobSha": "2ba6076a8853edac5e3e17cffd2c256318e88d92",
+        "bytes": 249984
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_elbow_link.STL",
+        "name": "right_elbow_link.STL",
+        "gitBlobSha": "f259e3812efb9985d6463c04d3e8a4b53793a699",
+        "bytes": 88784
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_wrist_roll_link.STL",
+        "name": "right_wrist_roll_link.STL",
+        "gitBlobSha": "26868d2282b7e38c2ba40e00968d2c92c421fbd2",
+        "bytes": 356084
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_wrist_pitch_link.STL",
+        "name": "right_wrist_pitch_link.STL",
+        "gitBlobSha": "da194543c40df9d492abb0553c06cc614a78caae",
+        "bytes": 79584
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_wrist_yaw_link.STL",
+        "name": "right_wrist_yaw_link.STL",
+        "gitBlobSha": "d788902867014c5984e6029fce822508579f73dc",
+        "bytes": 341484
+      },
+      {
+        "remote": "robots/g1_description/meshes/right_rubber_hand.STL",
+        "name": "right_rubber_hand.STL",
+        "gitBlobSha": "0aacffbb8168f0bb588f8cba3f37f9e2c6e0421a",
+        "bytes": 2192684
+      }
     ]
   }
 }
