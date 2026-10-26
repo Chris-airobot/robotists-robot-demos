@@ -125,3 +125,18 @@ test('every LimX visual STL gets a presentation material; no non-LimX files are 
     );
   }
 });
+
+test('URDFLoader dot-segment URLs match humanoid material palette after normalization', () => {
+  // URDFLoader passes a syntactic path from workingPath + "../meshes/...".
+  // It is not normalized until the browser performs a fetch.
+  for (const id of ['oli','luna']) {
+    for (const file of manifest.robots[id].files) {
+      const direct = getHumanoidStlStyle('/' + id + '/meshes/' + file.name);
+      const unnormalized = getHumanoidStlStyle('/' + id + '/urdf/../meshes/' + file.name);
+      const full = getHumanoidStlStyle('http://127.0.0.1:5173/' + id + '/urdf/../meshes/' + file.name + '?cache=1');
+      assert.ok(direct, id + '/' + file.name + ' has no material style');
+      assert.deepEqual(unnormalized, direct, id + '/' + file.name + ' URDF relative path lost its style');
+      assert.deepEqual(full, direct, id + '/' + file.name + ' absolute URL lost its style');
+    }
+  }
+});
