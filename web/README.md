@@ -1,4 +1,50 @@
-# Robotists Motion Library V1
+# Robotists Motion Library V0.2
+
+> Three-model browser studio: MagicDog (original OBJ+MTL), Unitree Go2,
+> Unitree A1 (official URDF + DAE). Lightweight camera and lighting polish,
+> responsive robot selection, and foot-space kinematic previews.
+
+## Try the new robots
+
+From the project root, once:
+
+    git -c http.version=HTTP/1.1 pull --ff-only
+    python3 tools/install_unitree_models.py --all
+
+This downloads **official manufacturer geometry** into
+`models/go2/meshes` and `models/a1/meshes` (~33.3 MiB total) and
+validates each file against pinned GitHub blob checksums. It uses only
+the Python standard library, supports resume/retry, and leaves original
+MagicDog files untouched. If network access fails, rerun the same command.
+
+Then from `web`:
+
+    npm run test:motions
+    npm run dev -- --host 127.0.0.1
+
+Open http://127.0.0.1:5173/ and select MagicDog, Go2, or A1 in the left
+sidebar. An informative status message appears if an optional model's
+mesh files have not yet been installed.
+
+These are **separate manufacturer models**, not scaled MagicDog clones.
+Go2/A1 source: https://github.com/unitreerobotics/unitree_ros
+at pinned revision in `models/unitree_assets.json`, under BSD-3-Clause
+(`models/unitree_LICENSE.txt`). Review vendor terms before publication.
+
+**Visual verification pending:** the URDF mesh reference paths, joint names
+and analytical animation limits have been checked in source, but the real
+DAE rendering appearance and per-robot browser FPS should be tested locally
+before publishing.
+
+### V0.2 visual polish
+- Transparent Three.js stage over a soft CSS studio gradient.
+- Soft ambient/key/fill illumination, no expensive dynamic shadow maps.
+- Approximate foot contact accents and a softer underbody ground shadow.
+- Gentler orbit controls and an eased reset-camera animation.
+- Three selectable robot profiles with accurate vendor attribution.
+- The existing MagicDog OBJ+MTL materials and gait remain unchanged.
+
+---
 
 Lightweight interactive 3D robot gallery built with React, Vite, Three.js and urdf-loader.
 
