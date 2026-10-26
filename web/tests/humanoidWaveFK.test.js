@@ -107,3 +107,30 @@ test('whole arm lowers to its original rest pose at each wave loop boundary', ()
     }
   }
 });
+
+test('OLI and LUNA greeting travels SIDE TO SIDE, not forward and backward', () => {
+  // 1.05 cycles/s means these are near consecutive positive and negative
+  // lateral peaks while the greeting envelope is fully active.
+  const outwardTime = 2.388;
+  const inwardTime = 2.864;
+  for (const [id, minSideToSide] of [['oli', .08], ['luna', .12]]) {
+    const xml = readFileSync(new URL(id + '/urdf/' + id + '.urdf', root), 'utf8');
+    const fk = modelFK(xml);
+    const handAt = time => {
+      const pose = sampleHumanoidMotion(id, 'greet', time);
+      const hand = fk('right_hand_contact', pose.joints);
+      const elbow = fk('right_elbow_link', pose.joints);
+      const head = fk('head_pitch_link', pose.joints);
+      assert.ok(hand[2] - elbow[2] > .14, id + ': forearm is no longer upright during the side-to-side wave');
+      assert.ok(Math.hypot(...hand.map((x, i) => x - head[i])) < .485, id + ': hand moved too far from head');
+      return hand;
+    };
+    const outward = handAt(outwardTime);
+    const inward = handAt(inwardTime);
+    const delta = outward.map((x, i) => Math.abs(x - inward[i]));
+    assert.ok(delta[1] > minSideToSide, id + ': lateral wave too small: ' + delta[1]);
+    assert.ok(delta[0] < .035, id + ': hand wags forward/back instead of left/right: ' + delta[0]);
+    assert.ok(delta[2] < .025, id + ': hand bobs vertically instead of waving sideways: ' + delta[2]);
+    assert.ok(delta[1] > delta[0] * 3.0, id + ': fore-aft wag dominates lateral movement');
+  }
+});
