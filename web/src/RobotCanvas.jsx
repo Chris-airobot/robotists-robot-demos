@@ -6,6 +6,8 @@ import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import URDFLoader from 'urdf-loader';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { applyHumanoidMotion, HUMANOID_MOTION_BY_ID } from './humanoidMotions.js';
 import { ROBOT_BY_ID } from './robots.js';
 import { applyUnitreeMotion } from './unitreeMotions.js';
 import { MOTION_BY_ID, applyMotion } from './motions.js';
@@ -59,6 +61,19 @@ function createRobotLoader(manager) {
   // Version 0.13.x callback: (path, manager, material, onComplete).
   // Load the MTL repaint colors and parse each OBJ only once.
   loader.loadMeshCb = (url, assetManager, material, onComplete) => {
+    if (/\.stl(?:\?.*)?$/i.test(url)) {
+      const stl = new STLLoader(assetManager);
+      if (!meshCache.has(url)) meshCache.set(url, stl.loadAsync(url));
+      meshCache.get(url).then(geometry => {
+        const mat = material?.isMaterial ? material.clone() : new THREE.MeshStandardMaterial({
+          color: '#c8d0d8', roughness: .66, metalness: .12,
+        });
+        mat.side = THREE.DoubleSide;
+        const mesh = new THREE.Mesh(geometry, mat);
+        onComplete(mesh);
+      }).catch(error => onComplete(null, error));
+      return;
+    }
     if (/\.dae(?:\?.*)?$/i.test(url)) {
       if (!meshCache.has(url)) {
         meshCache.set(url, colladaLoader.loadAsync(url).then(data => data.scene));
@@ -203,6 +218,8 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
       timeRef.current = seek.value;
       if (robotId === 'magicdog') {
         applyMotion(robotRef.current, stageRef.current, valuesRef.current.motionId, timeRef.current, { instant: true });
+      } else if (robotId === 'oli' || robotId === 'luna') {
+        applyHumanoidMotion(robotRef.current, stageRef.current, robotId, valuesRef.current.motionId, timeRef.current, { instant: true });
       } else {
         applyUnitreeMotion(robotRef.current, stageRef.current, robotId, valuesRef.current.motionId, timeRef.current, { instant: true });
       }
@@ -251,7 +268,12 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
     // Keep the original model colors; let the CSS studio gradient show through.
     scene.background = null;
     const camera = new THREE.PerspectiveCamera(35, 1, .01, 50);
-    camera.position.set(1.65, 1.15, 1.75);
+    const humanoid = ROBOT_BY_ID[robotId]?.category === 'Humanoid';
+    camera.position.set(
+      humanoid ? 2.55 : 1.65,
+      humanoid ? 1.65 : 1.15,
+      humanoid ? 2.7 : 1.75,
+    );
     const renderer = new THREE.WebGLRenderer({
       antialias: false, alpha: true, powerPreference: 'high-performance',
     });
@@ -301,7 +323,7 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 128, 128);
     const shadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(.95, .72),
+      new THREE.PlaneGeometry(humanoid ? 1.0 : .95, humanoid ? .88 : .72),
       new THREE.MeshBasicMaterial({
         map: new THREE.CanvasTexture(shadowCanvas),
         transparent: true, depthWrite: false,
@@ -342,11 +364,11 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
     controls.dampingFactor = .085;
     controls.rotateSpeed = .72;
     controls.zoomSpeed = .77;
-    controls.minDistance = .75;
-    controls.maxDistance = 5;
+    controls.minDistance = humanoid ? 1.1 : .75;
+    controls.maxDistance = humanoid ? 8 : 5;
     controls.minPolarAngle = .12;
     controls.maxPolarAngle = Math.PI / 2.04;
-    controls.target.set(0, ROBOT_BY_ID[robotId]?.groundHeight ?? .29, 0);
+    controls.target.set(0, humanoid ? 1.0 : .29, 0);
     controls.update();
     controls.saveState();
     controlsRef.current = controls;
@@ -384,6 +406,8 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
       robotRef.current = robot;
       if (robotId === 'magicdog') {
         applyMotion(robot, stage, valuesRef.current.motionId, timeRef.current, { instant: true });
+      } else if (humanoid) {
+        applyHumanoidMotion(robot, stage, robotId, valuesRef.current.motionId, timeRef.current, { instant: true });
       } else {
         applyUnitreeMotion(robot, stage, robotId, valuesRef.current.motionId, timeRef.current, { instant: true });
       }
@@ -411,6 +435,8 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
         timeRef.current += dt;
         if (robotId === 'magicdog') {
           applyMotion(robotRef.current, stage, phase.motion, timeRef.current, { deltaTime: dt });
+        } else if (humanoid) {
+          applyHumanoidMotion(robotRef.current, stage, robotId, phase.motion, timeRef.current, { deltaTime: dt });
         } else {
           applyUnitreeMotion(robotRef.current, stage, robotId, phase.motion, timeRef.current, { deltaTime: dt });
         }
@@ -423,10 +449,13 @@ export default function RobotCanvas({ robotId = 'magicdog', motionId, playing, s
         }
       } else {
         // Resume normal motions after the one-time benchmark has finished.
-        const duration = (MOTION_BY_ID[settings.motionId] || MOTION_BY_ID.idle).duration;
+        const lookup = humanoid ? HUMANOID_MOTION_BY_ID : MOTION_BY_ID;
+        const duration = (lookup[settings.motionId] || lookup.idle).duration;
         if (settings.playing) timeRef.current = (timeRef.current + dt * settings.speed) % duration;
         if (robotId === 'magicdog') {
           applyMotion(robotRef.current, stage, settings.motionId, timeRef.current, { deltaTime: dt });
+        } else if (humanoid) {
+          applyHumanoidMotion(robotRef.current, stage, robotId, settings.motionId, timeRef.current, { deltaTime: dt });
         } else {
           applyUnitreeMotion(robotRef.current, stage, robotId, settings.motionId, timeRef.current, { deltaTime: dt });
         }
