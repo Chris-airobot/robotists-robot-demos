@@ -44,15 +44,47 @@ Then from `web`:
     npm run test:motions
     npm run dev -- --host 127.0.0.1 --port 5173
 
-Open http://127.0.0.1:5173/. Select OLI or LUNA, then choose Standing,
-March Preview, Body Turn, Wave Hello, or Look Around.
+Open http://127.0.0.1:5173/. Select OLI or LUNA, then choose Ready Stance, Controlled Squat, Torso Turn, Wave Hello, Look Around,
+or Reach Forward.
 
 **Important:** these animations are browser-only demonstrations, not safe
 motor commands, measured trajectories, or physically validated humanoid
-locomotion. The manufacturer's URDF serializes some parallel linkage
+locomotion. The previous ungrounded `March Preview` has been removed:
+`walk` remains its internal key for playback compatibility but now
+deliberately shows a coordinated **Controlled Squat**, not walking. The manufacturer's URDF serializes some parallel linkage
 mechanisms for visualization. Actual model appearance and per-robot FPS must
 be verified interactively before publication. Original MagicDog and Go2
 visualization data remain unchanged.
+
+
+### Humanoid motion polish (v0.3.1)
+
+The first-generation humanoid motions were joint-angle sine waves. They made
+the robots move, but moving the whole root while the feet remained attached
+to the pelvis caused obvious skating and implausible transitions.
+
+Current OLI/LUNA previews intentionally use stationary motions with clear
+contact assumptions:
+
+- **Ready Stance:** fixed pelvis, subtle waist/head breathing.
+- **Controlled Squat:** approximate matched hip/knee/ankle coordination and
+  pelvis lowering from a two-link sagittal reach model.
+- **Torso Turn:** head + waist move while the pelvis/legs stay stationary.
+- **Wave Hello:** slow arm lift, controlled hand wave and return.
+- **Look Around:** look/hold/look/hold timing rather than rapid sine bobbing.
+- **Reach Forward:** forward reach and hold with a stationary lower body.
+
+Motion changes now actually crossfade for 650 ms; previously selecting a
+motion also sought to t=0 with an instant apply, bypassing the blend.
+
+These are **visual kinematic illustrations only**, not collision-checked or
+dynamically stable robot trajectories. OLI/LUNA have parallel ankles and
+nontrivial hip axes; exact stance-foot locking, believable walking and
+self-collision-free manipulation require model-based whole-body kinematics
+and robot-specific reference motions (e.g. source trajectories retargeted
+to the LimX joint names). A credible walking motion will only be added
+when such a reference can be verified; we will not relabel joint sine
+waves as real walking.
 
 ## Other robots
 
