@@ -87,7 +87,7 @@ export default function App() {
             <h1>Robots, <em>in motion.</em></h1>
             <p>Explore robot geometry in an interactive 3D space. Select a motion, orbit the camera, and discover the mechanics.</p>
           </div>
-          <div className="intro-right"><span className="live-dot"/> INTERACTIVE 3D ROBOT LIBRARY <span className="muted">05 / 05</span></div>
+          <div className="intro-right"><span className="live-dot"/> INTERACTIVE 3D ROBOT LIBRARY <span className="muted">{String(ROBOTS.length).padStart(2, '0')} / {String(ROBOTS.length).padStart(2, '0')}</span></div>
         </div>
 
         <div className="workspace">
@@ -103,7 +103,7 @@ export default function App() {
                 {item.id === robotId ? <Check size={16} className="accent"/> : <span className="soon">VIEW</span>}
               </button>
             ))}
-            <div className="library-tip">Official Unitree meshes require one-time local installation. Select a robot to see its status.</div>
+            <div className="library-tip">Some official model meshes require a one-time local download. Select a robot to see its status.</div>
 
             <hr/>
             <div className="pane-title"><div><span className="eyebrow">PLAYBACK LIBRARY</span><h2>Explore motions</h2></div><span className="badge">0{motions.length}</span></div>
@@ -146,7 +146,7 @@ export default function App() {
                 <span className="stage-tag"><span className={'live-dot ' + (load.phase === 'error' ? 'error' : '')}/>
                   {load.phase === 'ready' ? '3D VIEWER ACTIVE' : load.phase === 'error' ? 'MODEL ERROR' : 'LOADING MODEL'}
                 </span>
-                <span className="stage-tag muted-tag">KINEMATIC PREVIEW · {robot.index}/05</span>
+                <span className="stage-tag muted-tag">KINEMATIC PREVIEW · {robot.index}/{String(ROBOTS.length).padStart(2, '0')}</span>
               </div>
               <div className="stage-name">
                 <span className="eyebrow">{robot.brand.toUpperCase()} / {robot.category.toUpperCase()}</span>
