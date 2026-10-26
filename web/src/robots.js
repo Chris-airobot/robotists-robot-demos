@@ -25,5 +25,13 @@ export const ROBOTS = [
     urdf: 'a1/urdf/a1.urdf', ready: 'a1/meshes/asset-ready.txt',
     assetKind: 'Collada DAE', groundHeight: 0.32, cameraDistance: 2.2,
   },
+  {
+    id: 'g1', name: 'G1', brand: 'Unitree Robotics',
+    category: 'Humanoid', dof: '29 DOF', format: 'URDF + STL',
+    index: '04', subtitle: 'Full-body humanoid motion studies.',
+    description: 'A 29-DOF Unitree G1 humanoid using the official revision 1.0 URDF and STL geometry. The motions shown are hand-authored kinematic previews, not actual deployed control policies.',
+    urdf: 'g1/urdf/g1_29dof.urdf', ready: 'g1/meshes/asset-ready.txt',
+    assetKind: 'Binary STL', groundHeight: 0.82, cameraDistance: 2.9,
+  },
 ];
 export const ROBOT_BY_ID = Object.fromEntries(ROBOTS.map(robot => [robot.id, robot]));
