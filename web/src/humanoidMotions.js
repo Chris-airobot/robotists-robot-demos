@@ -91,7 +91,12 @@ const PROFILES = {
     kneeRange: [-.087, 2.583],
     // Hip-pitch origin to knee includes roll/yaw link offsets in the URDF.
     gaitUpper: .467, gaitLower: .385,
-    waveRoll: -2.18,
+    wavePose: {
+      // FK-calibrated right arm: wrist beside head, forearm angled upward.
+      shoulderPitch: -.22, shoulderRoll: -1.89,
+      shoulderYaw: -.79, elbow: -1.90,
+      wristYaw: .35, wristPitch: -.10, wristRoll: .08,
+    },
     shoulderRollL: [-.087, 3.229],
     shoulderRollR: [-3.229, .087],
   },
@@ -99,7 +104,13 @@ const PROFILES = {
     height: .88, upper: .365, lower: .417,
     kneeRange: [-.087266, 2.4435],
     gaitUpper: .3608, gaitLower: .417,
-    waveRoll: -1.88,
+    wavePose: {
+      // LUNA's longer forearm needs elbow flexion to lift the hand, NOT
+      // near-horizontal shoulder abduction (the old visual failure).
+      shoulderPitch: -1.02, shoulderRoll: -.78,
+      shoulderYaw: -.33, elbow: -1.99,
+      wristYaw: .35,
+    },
     shoulderRollL: [-.087266, 1.9199],
     shoulderRollR: [-1.9199, .087266],
   },
@@ -302,22 +313,27 @@ export function sampleHumanoidMotion(robotId, motionId, seconds) {
   } else if (id === 'greet') {
     const lift = envelope(t, .45, 1.60, 4.45, 5.70);
     const wave = envelope(t, 1.85, 2.15, 4.05, 4.38);
-    // Right arm: shoulder roll is about the local +X axis and has NEGATIVE
-    // range to abduct the right arm. A -1.26 rad target left the hand below
-    // shoulder height. The corrected robot-specific limits raise the wrist
-    // above the shoulder: approx -2.18 rad OLI, -1.88 rad LUNA.
-    j.right_shoulder_roll_joint = lerp(-.14, cfg.waveRoll, lift);
-    j.right_shoulder_pitch_joint = -.14 * lift;
-    // Keep elbow moderately bent instead of folding the hand against torso.
-    const wag = Math.sin(TAU * 1.1 * (t - 2.15));
-    j.right_elbow_joint = -.26 - .39 * lift + .10 * wave * wag;
-    // LUNA does not have wrist pitch/roll DOFs, so its visible "wave" comes
-    // primarily from arm/forearm yaw; wrist yaw gives a small added accent.
-    j.right_shoulder_yaw_joint = .12 * lift + .13 * wave * wag;
-    j.right_wrist_yaw_joint = .15 * wave * wag;
-    if (kind === 'oli') j.right_wrist_pitch_joint = -.10 * lift + .16 * wave * wag;
-    j.head_yaw_joint = -.12 * lift;
-    j.waist_yaw_joint = -.035 * lift;
+    // The previous "wave" had the entire right arm extended almost
+    // horizontally at shoulder height. A wrist-above-shoulder assertion
+    // cannot detect this. The targets below are calibrated using the actual
+    // URDF FK of right_elbow_link / right_hand_contact / head_pitch_link.
+    // In both models, the ELBOW bends so the FOREARM points up; the wrist
+    // finishes close to the right side of the head rather than far away.
+    const target = cfg.wavePose;
+    const wag = Math.sin(TAU * 1.05 * (t - 2.15));
+    j.right_shoulder_pitch_joint = lerp(.01, target.shoulderPitch, lift);
+    j.right_shoulder_roll_joint = lerp(-.14, target.shoulderRoll, lift);
+    j.right_shoulder_yaw_joint = target.shoulderYaw * lift + .055 * wave * wag;
+    j.right_elbow_joint = lerp(-.26, target.elbow, lift) + .075 * wave * wag;
+    // LUNA has only one actuated wrist axis. Use gentle wrist yaw + elbow
+    // motion; OLI can also add wrist roll for the visible greeting gesture.
+    j.right_wrist_yaw_joint = target.wristYaw * lift + .18 * wave * wag;
+    if (kind === 'oli') {
+      j.right_wrist_pitch_joint = target.wristPitch * lift + .08 * wave * wag;
+      j.right_wrist_roll_joint = target.wristRoll * lift + .18 * wave * wag;
+    }
+    j.head_yaw_joint = -.10 * lift;
+    // No lower-body/root turn; feet stay where they are.
   } else if (id === 'inspect') {
     // Choreographed slow saccades and pauses, no fast bobbling.
     const gaze = keyframe(t, [
