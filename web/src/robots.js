@@ -33,5 +33,21 @@ export const ROBOTS = [
     urdf: 'g1/urdf/g1_29dof.urdf', ready: 'g1/meshes/asset-ready.txt',
     assetKind: 'Binary STL', groundHeight: 0.82, cameraDistance: 2.9,
   },
+  {
+    id: 'oli', name: 'OLI', brand: 'LimX Dynamics',
+    category: 'Humanoid', dof: '31 DOF', format: 'URDF + STL',
+    index: '04', subtitle: 'Full-size research humanoid.',
+    description: 'LimX OLI humanoid, visualized from the official HU_D04 description. This is a kinematic preview, not a deployed locomotion policy.',
+    urdf: 'oli/urdf/oli.urdf', ready: 'oli/meshes/asset-ready.txt',
+    assetKind: 'STL', groundHeight: .89, cameraDistance: 3.75,
+  },
+  {
+    id: 'luna', name: 'LUNA', brand: 'LimX Dynamics',
+    category: 'Humanoid', dof: '27 DOF', format: 'URDF + STL',
+    index: '05', subtitle: 'LimX full-body humanoid platform.',
+    description: 'LimX LUNA humanoid, based on the official HU_L04 model. The URDF approximates some parallel linkages with serial joints.',
+    urdf: 'luna/urdf/luna.urdf', ready: 'luna/meshes/asset-ready.txt',
+    assetKind: 'STL', groundHeight: .88, cameraDistance: 3.8,
+  },
 ];
 export const ROBOT_BY_ID = Object.fromEntries(ROBOTS.map(robot => [robot.id, robot]));
