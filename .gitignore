@@ -19,3 +19,6 @@ dist/
 # Official Unitree mesh downloads (pin/checksums in models/unitree_assets.json)
 /models/go2/meshes/
 /models/a1/meshes/
+
+# Pinned official Unitree G1 binary meshes (downloaded locally)
+/models/g1/meshes/
