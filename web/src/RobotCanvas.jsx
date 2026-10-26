@@ -283,7 +283,8 @@ export default function RobotCanvas({ motionId, playing, speed, seek, resetCamer
           const a = Math.atan2(offset.z, offset.x) + dt * .85;
           camera.position.set(controls.target.x + radius * Math.cos(a), controls.target.y + offset.y, controls.target.z + radius * Math.sin(a));
         }
-      } else if (!benchmark?.finished) {
+      } else {
+        // Resume normal motions after the one-time benchmark has finished.
         const duration = (MOTION_BY_ID[settings.motionId] || MOTION_BY_ID.idle).duration;
         if (settings.playing) timeRef.current = (timeRef.current + dt * settings.speed) % duration;
         applyMotion(robotRef.current, stage, settings.motionId, timeRef.current);
